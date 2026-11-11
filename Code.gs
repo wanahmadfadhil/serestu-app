@@ -10,7 +10,7 @@
  *      Execute as: Me   |   Who has access: Anyone
  * 5. Pilihan A (hos dalam Apps Script): tambah fail HTML bernama "index", tampal index.html. Buka URL /exec.
  *    Pilihan B (hos luar, cth Netlify): tampal URL /exec ke CONFIG.API_URL dalam index.html.
- * 6. Jalankan pasangTrigger() untuk backup mingguan dan emel peringatan harian.
+ * 6. Jalankan pasangTrigger() untuk backup mingguan, emel peringatan harian dan arkib log bulanan.
  * 7. Daftar akaun dalam aplikasi menggunakan emel Super Admin — akaun itu aktif serta-merta.
  */
 
@@ -95,7 +95,7 @@ function doGet(e) {
     return HtmlService.createHtmlOutputFromFile('index')
       .setTitle('e-Kokurikulum')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);   // halang aplikasi dibenamkan dalam laman lain (clickjacking)
   } catch (err) {
     return json_({ ok: true, data: 'API e-Kokurikulum aktif. Gunakan POST.' });
   }
@@ -488,7 +488,10 @@ function auth_(token) {
     const t = rows_('Token').find(r => r.Token === token && r.Jenis === 'Sesi');
     if (!t || t.Tarikh_Luput < now_()) throw fail_('Sesi anda telah tamat. Sila log masuk semula.', 'AUTH');
     gid = t.ID_Guru;
-    cache.put('tk_' + token, gid, 21600);
+    // Cache tidak melebihi baki hayat token (maksimum 6 jam)
+    let baki = 21600;
+    try { baki = Math.floor((Utilities.parseDate(t.Tarikh_Luput, TZ, 'yyyy-MM-dd HH:mm:ss').getTime() - Date.now()) / 1000); } catch (e) { baki = 300; }
+    if (baki > 0) cache.put('tk_' + token, gid, Math.min(21600, baki));
   }
   const u = rows_('Users').find(r => r.ID_Guru === gid);
   if (!u || u.Status !== 'Aktif') throw fail_('Akaun anda tidak aktif.', 'AUTH');
@@ -603,6 +606,12 @@ function sudahMasuk_(masuk, tarikh) {
 /** Murid didaftarkan ke sistem dalam 30 hari terakhir (murid pindah masuk). */
 function muridBaharu_(m) {
   return !!m.Tarikh_Daftar && addDays_(String(m.Tarikh_Daftar).slice(0, 10), 30) >= today_();
+}
+/** Halang kehadiran/laporan bagi unit dalam kategori yang tidak merekod perjumpaan (contoh Rumah Sukan). */
+function needRekodPerjumpaan_(idUnit) {
+  const u = rows_('Unit').find(x => x.ID_Unit === idUnit);
+  if (!u) throw fail_('Unit tidak dijumpai.');
+  if (katPerjumpaan_()[u.ID_Kategori] === false) throw fail_('Kategori unit ini tidak merekod perjumpaan, kehadiran atau laporan.');
 }
 /** Kategori yang merekod perjumpaan (Rumah Sukan tidak). */
 function katPerjumpaan_() {
@@ -980,6 +989,7 @@ function a_saveKehadiran(d, ctx) {
   const idUnit = String(d.idUnit || '');
   const bil = Number(d.bil);
   needUnit_(ctx, idUnit);
+  needRekodPerjumpaan_(idUnit);
   const j = jadual_(ctx.sesi).find(x => Number(x.Bil) === bil);
   if (!j) throw fail_('Perjumpaan ini tiada dalam jadual.');
   if (j.Status === 'Dibatalkan') throw fail_('Perjumpaan ini telah dibatalkan.');
@@ -1040,6 +1050,7 @@ function medanLaporan_(fields) {
 function a_saveLaporan(d, ctx) {
   const idUnit = String(d.idUnit || '');
   needUnit_(ctx, idUnit);
+  needRekodPerjumpaan_(idUnit);
   const j = jadual_(ctx.sesi).find(x => x.ID_Perjumpaan === d.idPerjumpaan);
   if (!j) throw fail_('Perjumpaan tidak dijumpai.');
   if (j.Status === 'Dibatalkan') throw fail_('Perjumpaan ini telah dibatalkan.');
@@ -2270,14 +2281,16 @@ function onOpen() {
       .addItem('Daftar murid dari DATA MURID dan DATA KOKO', 'importKokoDariTab')
       .addItem('Pasang trigger automatik', 'pasangTrigger')
       .addItem('Backup sekarang', 'backupMingguan')
+      .addItem('Arkib log lama sekarang', 'arkibLog')
       .addToUi();
   } catch (e) { /* bukan konteks Sheets */ }
 }
 
 function pasangTrigger() {
   ScriptApp.getProjectTriggers().forEach(t => {
-    if (['backupMingguan', 'peringatanHarian'].indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t);
+    if (['backupMingguan', 'peringatanHarian', 'arkibLog'].indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t);
   });
+  ScriptApp.newTrigger('arkibLog').timeBased().onMonthDay(1).atHour(3).create();
   ScriptApp.newTrigger('backupMingguan').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(2).create();
   ScriptApp.newTrigger('peringatanHarian').timeBased().everyDays(1).atHour(7).create();
 }
@@ -2291,6 +2304,47 @@ function backupMingguan() {
   const fi = folder.getFiles();
   while (fi.hasNext()) files.push(fi.next());
   files.sort((a, b) => b.getDateCreated() - a.getDateCreated()).slice(8).forEach(f => f.setTrashed(true));
+}
+
+/* ---------- Arkib Log dan pembersihan Token (trigger bulanan) ---------- */
+const LOG_SIMPAN_HARI = 90;   // log lebih lama daripada ini dipindahkan ke fail arkib
+
+function arkibLogSS_() {
+  const p = PropertiesService.getScriptProperties();
+  const id = p.getProperty('ARKIB_LOG_ID');
+  if (id) { try { return SpreadsheetApp.openById(id); } catch (e) { /* cipta semula */ } }
+  const ss = SpreadsheetApp.create('Arkib Log e-Kokurikulum');
+  try { DriveApp.getFileById(ss.getId()).moveTo(rootFolder_()); } catch (e) { /* kekal di My Drive */ }
+  p.setProperty('ARKIB_LOG_ID', ss.getId());
+  return ss;
+}
+
+/** Pindahkan log lama ke fail arkib dan buang token yang telah luput. Dipanggil oleh trigger bulanan atau menu. */
+function arkibLog() {
+  const r = withLock_(() => {
+    Object.keys(T_).forEach(k => { delete T_[k]; });
+    const t = table_('Log');
+    const had = addDays_(today_(), -LOG_SIMPAN_HARI);
+    const lama = t.rows.filter(x => x.Masa && String(x.Masa).slice(0, 10) < had);
+    if (lama.length) {
+      const sh = arkibLogSS_().getSheets()[0];
+      if (sh.getLastRow() === 0) sh.getRange(1, 1, 1, t.head.length).setValues([t.head]).setFontWeight('bold');
+      const start = sh.getLastRow() + 1;
+      const need = start + lama.length - 1 - sh.getMaxRows();
+      if (need > 0) sh.insertRowsAfter(sh.getMaxRows(), need);
+      if (sh.getMaxColumns() < t.head.length) sh.insertColumnsAfter(sh.getMaxColumns(), t.head.length - sh.getMaxColumns());
+      sh.getRange(start, 1, lama.length, t.head.length).setNumberFormat('@').setValues(lama.map(o => toArr_(t, o)));
+      removeMany_('Log', lama);
+    }
+    const now = now_();
+    const luput = rows_('Token').filter(x => x.Tarikh_Luput < now);
+    if (luput.length) killTokens_(luput);
+    if (lama.length) log_('', 'Arkib log', 'Log', '', '', lama.length + ' baris dipindahkan, ' + luput.length + ' token luput dibuang');
+    return { log: lama.length, token: luput.length };
+  }, true);
+  Logger.log('Arkib log: ' + r.log + ' baris, token luput: ' + r.token);
+  try { SpreadsheetApp.getUi().alert('Arkib selesai: ' + r.log + ' baris log dipindahkan, ' + r.token + ' token luput dibuang.'); } catch (e) { /* trigger: tiada UI */ }
+  return r;
 }
 
 function peringatanHarian() {
@@ -2665,12 +2719,11 @@ function a_simpanKelasUnit(d, ctx) {
     if (!idU) { if (e) { e.Status = 'Keluar'; ubah = true; keluar++; } return; }
     const u = units[idU];
     if (!u || u.ID_Kategori !== idK || u.Status === 'Tidak Aktif') throw fail_('Unit tidak sah bagi kategori ini.');
-    if (e) {
-      if (e.ID_Unit !== idU) { e.ID_Unit = idU; e.Kelas = m.Kelas; e.Tarikh_Masuk = masuk; ubah = true; tukar++; }
-    } else {
-      const ne = { ID_Enrolmen: uid_('E'), Tahun: sesi, ID_Murid: m.ID_Murid, ID_Unit: idU, ID_Kategori: idK, Kelas: m.Kelas, Status: 'Aktif', Tarikh_Masuk: masuk };
-      semasa[m.ID_Murid + '|' + idK] = ne; add.push(ne); baru++;
-    }
+    if (e && e.ID_Unit === idU) return;
+    // Tukar unit: rekod lama ditutup (Keluar) supaya sejarah keahlian kekal, rekod baharu dicipta
+    if (e) { e.Status = 'Keluar'; ubah = true; tukar++; } else baru++;
+    const ne = { ID_Enrolmen: uid_('E'), Tahun: sesi, ID_Murid: m.ID_Murid, ID_Unit: idU, ID_Kategori: idK, Kelas: m.Kelas, Status: 'Aktif', Tarikh_Masuk: masuk };
+    semasa[m.ID_Murid + '|' + idK] = ne; add.push(ne);
   });
   if (ubah) writeAll_('Enrolmen');
   insertMany_('Enrolmen', add);
@@ -2838,12 +2891,10 @@ function a_daftarMurid(d, ctx) {
     const u = units[idU];
     if (!u || u.ID_Kategori !== idK || u.Status === 'Tidak Aktif') throw fail_('Unit tidak sah bagi kategori ini.');
     const e = semasa[idK];
-    if (e) {
-      if (e.ID_Unit !== idU) { e.ID_Unit = idU; e.Kelas = m.Kelas; e.Tarikh_Masuk = masuk; ubah = true; pindah++; }
-    } else {
-      add.push({ ID_Enrolmen: uid_('E'), Tahun: sesi, ID_Murid: m.ID_Murid, ID_Unit: idU, ID_Kategori: idK, Kelas: m.Kelas, Status: 'Aktif', Tarikh_Masuk: masuk });
-      baru++;
-    }
+    if (e && e.ID_Unit === idU) return;
+    // Tukar unit: tutup rekod lama (Keluar), cipta rekod baharu
+    if (e) { e.Status = 'Keluar'; ubah = true; pindah++; } else baru++;
+    add.push({ ID_Enrolmen: uid_('E'), Tahun: sesi, ID_Murid: m.ID_Murid, ID_Unit: idU, ID_Kategori: idK, Kelas: m.Kelas, Status: 'Aktif', Tarikh_Masuk: masuk });
   });
   if (ubah) writeAll_('Enrolmen');
   insertMany_('Enrolmen', add);
@@ -3069,7 +3120,12 @@ function importKokoCore_(who) {
       const e = enIdx[key];
       if (e) {
         if (e.ID_Unit === u.ID_Unit) { sama++; if (e.Kelas !== m.kelas || e.Tarikh_Masuk) { e.Kelas = m.kelas; e.Tarikh_Masuk = ''; enUbah = true; } }
-        else { e.ID_Unit = u.ID_Unit; e.Kelas = m.kelas; e.Tarikh_Masuk = ''; enUbah = true; dipindah++; }
+        else {
+          // Tukar unit: rekod lama ditutup, rekod baharu dicipta (sejarah keahlian kekal)
+          e.Status = 'Keluar'; enUbah = true; dipindah++;
+          const ne = { ID_Enrolmen: uid_('E'), Tahun: sesi, ID_Murid: m.id, ID_Unit: u.ID_Unit, ID_Kategori: l.kat.ID_Kategori, Kelas: m.kelas, Status: 'Aktif', Tarikh_Masuk: '' };
+          enIdx[key] = ne; addE.push(ne);
+        }
       } else {
         const ne = { ID_Enrolmen: uid_('E'), Tahun: sesi, ID_Murid: m.id, ID_Unit: u.ID_Unit, ID_Kategori: l.kat.ID_Kategori, Kelas: m.kelas, Status: 'Aktif', Tarikh_Masuk: '' };
         enIdx[key] = ne; addE.push(ne); didaftar++;

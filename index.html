@@ -769,21 +769,23 @@ async function uploadImage(file, o = {}) {
  * BARISAN LUAR TALIAN (kehadiran disimpan dalam peranti, dihantar automatik)
  * ========================================================================= */
 let syncing = false;
+/** Rekod luar talian milik guru yang sedang log masuk sahaja (rekod tanpa uid: versi lama). */
+const myQueue = () => (S.user ? S.queue.filter(q => !q.uid || q.uid === S.user.id) : []);
 async function loadQueue() { S.queue = (await DB.all('queue')).filter(q => q && q.qid).sort((a, b) => (a.qid < b.qid ? -1 : 1)); updateSync(); }
 async function enqueue(action, data, label) {
-  const item = { qid: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), action, data, label, at: Date.now() };
+  const item = { qid: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), uid: (S.user && S.user.id) || '', action, data, label, at: Date.now() };
   S.queue.push(item);
   await DB.set('queue', item.qid, item);
   updateSync(); renderNav();
 }
 async function syncQueue(manual) {
   if (syncing || !S.token) return;
-  if (!S.queue.length) { if (manual) toast('Semua rekod sudah dihantar.', 'ok'); return; }
+  if (!myQueue().length) { if (manual) toast('Semua rekod sudah dihantar.', 'ok'); return; }
   if (!navigator.onLine) { if (manual) toast('Tiada sambungan internet.', 'warn'); return; }
   syncing = true; updateSync();
   let done = 0;
   try {
-    for (const item of S.queue.slice()) {
+    for (const item of myQueue()) {
       try { await api(item.action, item.data); }
       catch (e) { if (e.net || e.code === 'AUTH') break; toast(item.label + ' tidak dapat dihantar: ' + e.message, 'bad'); }
       S.queue = S.queue.filter(q => q.qid !== item.qid);
@@ -799,7 +801,7 @@ async function syncQueue(manual) {
   }
 }
 function overlayQueue(d) {
-  const mine = S.queue.filter(q => q.action === 'saveKehadiran' && q.data.idUnit === d.unit.id);
+  const mine = myQueue().filter(q => q.action === 'saveKehadiran' && q.data.idUnit === d.unit.id);
   if (!mine.length) return d;
   const out = Object.assign({}, d, { kehadiran: JSON.parse(JSON.stringify(d.kehadiran)) });
   mine.forEach(q => Object.keys(q.data.marks).forEach(id => {
@@ -811,7 +813,7 @@ function overlayQueue(d) {
 function updateSync() {
   const p = $('#syncPill');
   if (!p) return;
-  const n = S.queue.length;
+  const n = myQueue().length;
   p.className = 'sync-pill';
   if (!navigator.onLine) { p.classList.add('show', 'off'); p.innerHTML = '<i></i>Luar talian' + (n ? ' (' + n + ')' : ''); }
   else if (syncing) { p.classList.add('show'); p.innerHTML = '<i></i>Menghantar'; }
@@ -1108,7 +1110,7 @@ function renderNav() {
   if (S.user.super) items.push(['admin', 'Pentadbiran', 'shield', (m.users || 0) + (m.guruUnit || 0) + (m.laporan || 0)]);
   if (!S.user.super && S.user.pengesah) items.push(['sahkan', 'Pengesahan', 'check', m.laporan || 0]);
   if (S.user.kelas) items.push(['kelas', 'Kelas saya', 'users', 0]);
-  items.push(['profil', 'Profil', 'user', S.queue.length]);
+  items.push(['profil', 'Profil', 'user', myQueue().length]);
   nav.innerHTML = items.map(([k, l, i, n]) => `<a href="#/${k}" data-nav="${k}">${ic(i)}<span>${l}</span>${n ? `<span class="nav-badge">${n}</span>` : ''}</a>`).join('')
     + `<div class="nav-foot rail-only"><a href="#/awam" data-nav="awam">${ic('eye')}<span>Paparan awam</span></a><button type="button" class="nav-out" data-act="logout">${ic('logout')}<span>Log keluar</span></button></div>`;
   setNavActive(location.hash);
@@ -1347,9 +1349,10 @@ function logoutLocal(expired) {
   go('#/utama');
 }
 async function doLogout() {
-  if (S.queue.length && !(await confirmDlg(S.queue.length + ' rekod kehadiran belum dihantar dan akan dibuang jika anda log keluar sekarang.', { ok: 'Log keluar juga', danger: true }))) return;
-  S.queue = [];
-  await DB.clear('queue');
+  const mineQ = myQueue();
+  if (mineQ.length && !(await confirmDlg(mineQ.length + ' rekod kehadiran belum dihantar dan akan dibuang jika anda log keluar sekarang.', { ok: 'Log keluar juga', danger: true }))) return;
+  S.queue = S.queue.filter(q => mineQ.indexOf(q) < 0);
+  for (const q of mineQ) await DB.del('queue', q.qid);
   api('logout', {}).catch(() => {});
   logoutLocal(false);
 }
@@ -4131,7 +4134,7 @@ async function pageProfil() {
   const theme = localStorage.getItem('koku_theme') || 'auto';
   let storan = '';
   try { if (navigator.storage && navigator.storage.estimate) { const e = await navigator.storage.estimate(); storan = (e.usage / 1048576).toFixed(1) + ' MB digunakan'; } } catch (e) { /* abaikan */ }
-  const q = S.queue;
+  const q = myQueue();
   main(`<div class="card" style="margin-bottom:14px"><div class="unit-card">
       <div class="ava-wrap" id="pfAva">${avatarHtml(u.nama, u.gambar, 'avatar-l')}<label class="ava-cam" title="Tukar gambar" aria-label="Tukar gambar profil">${ic('camera')}<input type="file" accept="image/*" class="sr" id="pfFile"></label></div>
       <div class="grow"><h2 style="font-size:22px">${esc(u.nama)}</h2><div class="small muted" style="overflow-wrap:anywhere">${esc(u.emel)}</div>
