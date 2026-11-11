@@ -94,6 +94,8 @@ main.page{max-width:1080px;margin:0 auto;padding:18px 14px calc(var(--navh) + 34
 .bottomnav{position:fixed;bottom:0;left:0;right:0;z-index:40;background:var(--surface);border-top:1px solid var(--line);padding-bottom:var(--sab);display:flex}
 .bottomnav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:var(--navh);color:var(--ink-3);text-decoration:none;font-size:12px;font-weight:700;position:relative}
 .bottomnav a.on{color:var(--primary)}
+.bottomnav a>span:not(.nav-badge){max-width:100%;padding:0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:400px){.bottomnav a{font-size:11px}}
 .bottomnav a.on::before{content:'';position:absolute;top:0;width:30px;height:3px;border-radius:0 0 4px 4px;background:var(--gold)}
 .nav-badge{position:absolute;top:8px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bad);color:#fff;font-size:11px;line-height:18px;text-align:center}
 @media (min-width:920px){
@@ -1110,6 +1112,7 @@ function renderNav() {
   if (S.user.super) items.push(['admin', 'Pentadbiran', 'shield', (m.users || 0) + (m.guruUnit || 0) + (m.laporan || 0)]);
   if (!S.user.super && S.user.pengesah) items.push(['sahkan', 'Pengesahan', 'check', m.laporan || 0]);
   if (S.user.kelas) items.push(['kelas', 'Kelas saya', 'users', 0]);
+  items.push(['pelibatan', 'Pelibatan', 'award', 0]);
   items.push(['profil', 'Profil', 'user', myQueue().length]);
   nav.innerHTML = items.map(([k, l, i, n]) => `<a href="#/${k}" data-nav="${k}">${ic(i)}<span>${l}</span>${n ? `<span class="nav-badge">${n}</span>` : ''}</a>`).join('')
     + `<div class="nav-foot rail-only"><a href="#/awam" data-nav="awam">${ic('eye')}<span>Paparan awam</span></a><button type="button" class="nav-out" data-act="logout">${ic('logout')}<span>Log keluar</span></button></div>`;
@@ -1970,6 +1973,11 @@ function openCartaEditor(d) {
 
 /* ---------------- Tab: Pencapaian ---------------- */
 const PERINGKAT = ['Sekolah', 'Zon', 'Daerah', 'Negeri', 'Kebangsaan', 'Antarabangsa'];
+/* Khidmat sumbangan PAJSK (nilai mesti sama dengan SPPB.khidmat dalam Code.gs) dengan label ringkas */
+const KHIDMAT = ["MURID YANG DIDAFTARKAN SEBAGAI ATLET ATAU PESERTA PROGRAM/ PERTANDINGAN/ KARNIVAL/ KURSUS", "MELIBATKAN KEMAHIRAN KHUSUS - BERKAITAN ASPEK TEKNIKAL (PENGADIL, JURULATIH PASUKAN, DAN LAIN-LAIN YANG BERKAITAN ASPEK TEKNIKAL)", "PELIBATAN MURID YANG TERLIBAT DALAM AKTIVITI SEPERTI PERSEMBAHAN SELINGAN", "MEMBANTU DARI SEGI MENJAYAKAN AKTIVITI KELAB PERSATUAN SUKAN SEKOLAH SEPERTI MENGAMBIL BAHAGIAN DALAM PERBARISAN ATAU PERSEMBAHAN, KUMPULAN SORAK/PENYOKONG, DAN YANG BERKAITAN"];
+const KHIDMAT_RINGKAS = ['Atlet / peserta program, pertandingan, karnival atau kursus', 'Kemahiran teknikal (pengadil, jurulatih)', 'Persembahan selingan', 'Membantu menjayakan aktiviti (perbarisan, sorak, penyokong)'];
+const khidmatLabel = v => { const i = KHIDMAT.indexOf(v); return i >= 0 ? KHIDMAT_RINGKAS[i] : (v || ''); };
+const khidmatOpts = (v, kosong = 'Tiada') => `<option value="">${esc(kosong)}</option>` + KHIDMAT.map((k, i) => `<option value="${esc(k)}" ${k === v ? 'selected' : ''}>${esc(KHIDMAT_RINGKAS[i])}</option>`).join('');
 const HASIL = ['Penyertaan', 'Johan', 'Naib Johan', 'Tempat Ketiga', 'Saguhati', 'Pingat Emas', 'Pingat Perak', 'Pingat Gangsa'];
 function tabPencapaian(d) {
   const head = `<div class="spread" style="margin-bottom:12px"><span class="small muted">${d.pencapaian.length} rekod sesi ${esc(S.boot.sesi)}</span>${d.ahli.length ? `<button class="btn btn-primary" data-act="addP">${ic('plus')}Rekod pencapaian</button>` : ''}</div>`;
@@ -1999,6 +2007,7 @@ function openPencapaian(d, p) {
       <div class="hstack" style="align-items:flex-start"><div class="field grow"><label for="pcP">Peringkat <span class="req">*</span></label><select class="input" id="pcP" ${can ? '' : 'disabled'}>${PERINGKAT.map(x => `<option ${p && p.peringkat === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
       <div class="field grow"><label for="pcT">Tarikh</label><input class="input" id="pcT" type="date" value="${esc(p ? p.tarikh : today())}" ${can ? '' : 'disabled'}></div></div>
       <div class="field"><label for="pcH">Pencapaian</label><input class="input" id="pcH" list="hasilList" value="${esc(p ? p.pencapaian : '')}" placeholder="cth. Johan, Pingat Emas, Penyertaan" ${can ? '' : 'disabled'}><datalist id="hasilList">${HASIL.map(x => `<option value="${x}">`).join('')}</datalist></div>
+      <div class="field"><label for="pcK">Khidmat sumbangan (PAJSK)</label><select class="input" id="pcK" ${can ? '' : 'disabled'}>${khidmatOpts(p ? p.khidmat : '')}</select></div>
       <div class="field"><span class="label">Bukti (sijil atau gambar)</span><div class="thumbs" id="pcB"></div></div>`,
     foot: can ? `${p ? `<button class="btn btn-danger" data-act="del">${ic('trash', 'i-s')}Padam</button>` : '<button class="btn" data-act="sheetClose">Batal</button>'}<button class="btn btn-primary" data-act="save">Simpan</button>` : '',
     acts: {
@@ -2011,7 +2020,7 @@ function openPencapaian(d, p) {
       },
       async save(el) {
         const pilih = p ? [sh.$('#pcM').value] : sh.$$('#pcL input:checked').map(i => i.value);
-        const data = { id: p ? p.id : '', idUnit: d.unit.id, idMurid: pilih[0] || '', idMurids: p ? undefined : pilih, aktiviti: sh.$('#pcA').value.trim(), peringkat: sh.$('#pcP').value, tarikh: sh.$('#pcT').value, pencapaian: sh.$('#pcH').value.trim(), idBukti: bukti };
+        const data = { id: p ? p.id : '', idUnit: d.unit.id, idMurid: pilih[0] || '', idMurids: p ? undefined : pilih, aktiviti: sh.$('#pcA').value.trim(), peringkat: sh.$('#pcP').value, tarikh: sh.$('#pcT').value, pencapaian: sh.$('#pcH').value.trim(), khidmat: sh.$('#pcK').value, idBukti: bukti };
         if (!pilih.length || !data.aktiviti) return toast('Pilih murid dan isi nama aktiviti.', 'warn');
         await withBusy(el, async () => {
           try { const r = await api('savePencapaian', data); sh.close(); toast(r.bil > 1 ? `Pencapaian disimpan untuk ${r.bil} murid.` : 'Pencapaian disimpan.', 'ok'); reloadUnit(d.unit.id); }
@@ -3051,7 +3060,7 @@ async function admPajskPeta() {
           <div class="hstack" style="margin:4px 0 0 34px;flex-wrap:nowrap"><input class="input" id="ppPct" type="number" inputmode="numeric" min="0" max="100" value="${t.aktifPeratus}" style="max-width:100px"><span class="small muted">% kehadiran untuk Ahli Aktif</span></div></div>
         <div class="field"><span class="label">Komitmen (diisi mengikut kehadiran: 80% ke atas 4 item, 60% 3 item, 40% 2 item, kurang 1 item)</span>
           ${[0, 1, 2, 3].map(i => `<select class="input" data-km="${i}" style="margin-bottom:6px"><option value="">Item ${i + 1}: tiada</option>${sp.komitmen.map(k => `<option ${t.komitmen[i] === k ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select>`).join('')}</div>
-        <div class="field"><label for="ppKh">Khidmat Sumbangan lalai</label><select class="input" id="ppKh"><option value="">Tiada (guru isi sendiri)</option>${sp.khidmat.map(k => `<option ${t.khidmat === k ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select></div>
+        <div class="field"><label for="ppKh">Khidmat Sumbangan lalai <span class="muted small">(jika guru tidak merekod khidmat murid)</span></label><select class="input" id="ppKh"><option value="">Tiada</option>${sp.khidmat.map(k => `<option ${t.khidmat === k ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select></div>
       </form>
       <p class="hint" style="margin:10px 2px">Jawatan murid diambil daripada carta organisasi unit (contoh Pengerusi, Setiausaha, Ketua Pasukan). Pelibatan dan pencapaian diambil daripada rekod pencapaian murid.</p>
       <div class="savebar"><div class="grow"></div><button class="btn btn-primary" data-act="save">Simpan pemetaan</button></div>`);
@@ -4279,6 +4288,174 @@ async function saveProfil(data) {
 /* =========================================================================
  * LALUAN, PERISTIWA GLOBAL DAN PERMULAAN
  * ========================================================================= */
+/* =========================================================================
+ * PELIBATAN PAJSK: semua guru merekod penyertaan, pencapaian dan khidmat sumbangan murid
+ * ========================================================================= */
+async function pagePelibatan() {
+  setTitle('Pelibatan PAJSK', 'Penyertaan, pencapaian dan khidmat murid');
+  S.acts.retry = () => route();
+  await admLoad('pelibatan', 'pelibatanBorang', {}, r => pelibatanView(r), 20000);
+}
+
+function pelibatanView(r) {
+  const katNama = id => ((r.kategori.find(k => k.id === id) || K(id) || {}).nama) || '';
+  const grup = [], gi = {};
+  r.rekod.forEach(x => {
+    const k = [x.aktiviti, x.tarikh, x.peringkat, x.idKategori].join('|');
+    if (!gi[k]) { gi[k] = { aktiviti: x.aktiviti, tarikh: x.tarikh, peringkat: x.peringkat, idKategori: x.idKategori, list: [] }; grup.push(gi[k]); }
+    gi[k].list.push(x);
+  });
+  main(`${bannerHtml('', 'info', 'Semua guru boleh merekod pelibatan murid, walaupun bukan guru unit murid tersebut. Rekod dilekatkan pada unit murid dalam kategori yang dipilih dan terus digunakan dalam templat <b>PAJSK MOEIS</b> (Pelibatan, Pencapaian dan Khidmat Sumbangan).')}
+    <div class="sec"><h2>Rekod saya</h2><button class="btn btn-primary btn-sm" data-act="plBaru">${ic('plus', 'i-s')}Rekod baharu</button></div>
+    ${grup.length ? `<div class="list">${grup.map((g, i) => `<button class="row row-wrap" data-act="plGrup" data-i="${i}">${patchHtml({ nama: katNama(g.idKategori), idKategori: g.idKategori }, 'patch-s')}<div class="row-main"><div class="row-title">${esc(g.aktiviti)}</div><div class="row-sub">${esc(katNama(g.idKategori))}, ${esc(g.peringkat)}${g.tarikh ? ', ' + esc(fmtDate(g.tarikh)) : ''}</div></div><span class="chip">${g.list.length} murid</span>${ic('chev', 'i-s')}</button>`).join('')}</div>`
+      : emptyHtml('award', 'Belum ada rekod sesi ini', 'Tekan Rekod baharu apabila murid menyertai pertandingan, program, karnival, kursus atau membantu menjayakan aktiviti sekolah.', `<button class="btn btn-primary" data-act="plBaru">${ic('plus', 'i-s')}Rekod baharu</button>`)}`);
+  S.acts = {
+    retry: () => route(),
+    plBaru: () => openPelibatanBaru(r),
+    plGrup(el) { const g = grup[Number(el.dataset.i)]; if (g) openPelibatanGrup(r, g); }
+  };
+}
+
+async function selepasPelibatan() {
+  await cacheStale('pelibatan', 'unit', 'dash', 'pajsk');
+  route(true);
+}
+
+function openPelibatanBaru(r, asal) {
+  if (!r.kategori.length) return toast('Tiada kategori Kelab, Beruniform atau Sukan. Hubungi Super Admin.', 'warn');
+  const murid = r.murid.map(([id, nama, kelas, unit]) => ({ id, nama, kelas, unit }));
+  const byId = {}; murid.forEach(m => { byId[m.id] = m; });
+  const kelasList = Array.from(new Set(murid.map(m => m.kelas).filter(Boolean))).sort(numSort);
+  const st = { kat: (asal && asal.idKategori) || r.kategori[0].id, q: '', kelas: '', pilih: new Map() };
+  const unitNama = (m, k) => (m.unit[k] ? r.unit[m.unit[k]] || 'Unit' : '');
+  const kn = id => (r.kategori.find(k => k.id === id) || {}).nama || '';
+  const sh = openSheet({
+    title: asal ? 'Tambah murid' : 'Rekod pelibatan murid', full: true,
+    body: `<div class="field"><span class="label">Kategori PAJSK <span class="req">*</span></span><div class="pills" id="plKat" style="flex-wrap:wrap"></div></div>
+      <div class="field"><label for="plA">Aktiviti, program atau pertandingan <span class="req">*</span></label><input class="input" id="plA" value="${esc(asal ? asal.aktiviti : '')}" placeholder="cth. Kejohanan Olahraga MSSD 2026"></div>
+      <div class="hstack" style="align-items:flex-start"><div class="field grow"><label for="plP">Peringkat <span class="req">*</span></label><select class="input" id="plP">${PERINGKAT.map(x => `<option ${asal && asal.peringkat === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
+      <div class="field grow"><label for="plT">Tarikh</label><input class="input" id="plT" type="date" max="${esc(today())}" value="${esc(asal ? asal.tarikh : today())}"></div></div>
+      <div class="hstack" style="align-items:flex-start;flex-wrap:wrap"><div class="field grow"><label for="plH">Pencapaian (lalai)</label><input class="input" id="plH" list="plHL" value="Penyertaan"><datalist id="plHL">${HASIL.map(x => `<option value="${x}">`).join('')}</datalist></div>
+      <div class="field grow"><label for="plK">Khidmat sumbangan (lalai)</label><select class="input" id="plK">${khidmatOpts('')}</select></div></div>
+      <p class="hint" style="margin:-6px 2px 12px">Nilai lalai diberi kepada murid yang baru dipilih. Ubah bagi setiap murid dalam senarai <b>Murid dipilih</b> jika keputusan berbeza (contoh seorang Johan, yang lain Penyertaan).</p>
+      <div class="field"><span class="label">Pilih murid <span class="muted small" id="plN">0 dipilih</span></span>
+        <div class="pick-box"><div class="pick-head"><div class="search">${ic('search', 'i-s')}<input class="input" id="plQ" placeholder="Cari nama murid" autocomplete="off"></div>
+        <select class="input" id="plKelas" style="max-width:130px"><option value="">Semua kelas</option>${kelasList.map(k => `<option>${esc(k)}</option>`).join('')}</select></div>
+        <div class="pick-list" id="plL"></div></div></div>
+      <div id="plPilih"></div>`,
+    foot: `<button class="btn" data-act="sheetClose">Batal</button><button class="btn btn-primary" data-act="save" id="plSave">Simpan</button>`,
+    acts: {
+      plKat(el) {
+        st.kat = el.dataset.id;
+        let buang = 0;
+        Array.from(st.pilih.keys()).forEach(id => { if (!byId[id].unit[st.kat]) { st.pilih.delete(id); buang++; } });
+        if (buang) toast(buang + ' murid dibuang kerana tiada unit ' + kn(st.kat) + '.', 'warn');
+        drawKat(); drawList(); drawPilih();
+      },
+      plBuang(el) { st.pilih.delete(el.dataset.id); drawList(); drawPilih(); },
+      async save(el) {
+        const aktiviti = sh.$('#plA').value.trim();
+        if (aktiviti.length < 5) { sh.$('#plA').focus(); return toast('Isi nama aktiviti (sekurang-kurangnya 5 aksara).', 'warn'); }
+        if (!st.pilih.size) return toast('Pilih sekurang-kurangnya seorang murid.', 'warn');
+        const data = { idKategori: st.kat, aktiviti, peringkat: sh.$('#plP').value, tarikh: sh.$('#plT').value,
+          murid: Array.from(st.pilih.entries()).map(([idMurid, v]) => ({ idMurid, pencapaian: v.pencapaian, khidmat: v.khidmat })) };
+        await withBusy(el, async () => {
+          try {
+            const x = await api('simpanPelibatan', data);
+            sh.close();
+            toast(`Pelibatan disimpan untuk ${x.bil} murid.` + (x.sudahAda ? ` ${x.sudahAda} sudah direkod sebelum ini.` : '') + (x.tanpaUnit.length ? ` ${x.tanpaUnit.length} murid dilangkau kerana tiada unit.` : ''), x.tanpaUnit.length ? 'warn' : 'ok');
+            selepasPelibatan();
+          } catch (e) { toast(e.message, 'bad'); }
+        });
+      }
+    }
+  });
+  const drawKat = () => {
+    sh.$('#plKat').innerHTML = r.kategori.map(k => `<button type="button" class="${k.id === st.kat ? 'on' : ''}" data-act="plKat" data-id="${esc(k.id)}">${esc(k.nama)}</button>`).join('');
+  };
+  const drawList = () => {
+    const q = st.q.trim().toLowerCase();
+    const L = murid.filter(m => (!st.kelas || m.kelas === st.kelas) && (!q || m.nama.toLowerCase().includes(q)));
+    sh.$('#plL').innerHTML = L.slice(0, 400).map(m => {
+      const u = unitNama(m, st.kat);
+      return `<label class="row" ${u ? '' : 'style="opacity:.55;cursor:not-allowed"'}><input type="checkbox" value="${esc(m.id)}" ${st.pilih.has(m.id) ? 'checked' : ''} ${u ? '' : 'disabled'}><div class="row-main"><div class="row-title">${esc(m.nama)}</div><div class="row-sub">${esc(m.kelas)}, ${u ? esc(u) : 'tiada unit ' + esc(kn(st.kat))}</div></div></label>`;
+    }).join('') || `<div class="row small muted">Tiada murid sepadan.</div>`;
+    sh.$('#plN').textContent = st.pilih.size + ' dipilih';
+  };
+  const drawPilih = () => {
+    sh.$('#plN').textContent = st.pilih.size + ' dipilih';
+    sh.$('#plSave').textContent = st.pilih.size ? `Simpan (${st.pilih.size} murid)` : 'Simpan';
+    if (!st.pilih.size) { sh.$('#plPilih').innerHTML = ''; return; }
+    sh.$('#plPilih').innerHTML = `<div class="label" style="margin:4px 2px 8px">Murid dipilih (${st.pilih.size})</div><div class="list">${Array.from(st.pilih.entries()).map(([id, v]) => {
+      const m = byId[id];
+      return `<div class="row row-wrap" data-pm="${esc(id)}" style="flex-wrap:wrap;align-items:flex-start;row-gap:8px"><div class="row-main" style="flex:1 1 0;min-width:0"><div class="row-title">${esc(m.nama)}</div><div class="row-sub">${esc(m.kelas)}, ${esc(unitNama(m, st.kat))}</div></div>
+        <button type="button" class="icon-btn" data-act="plBuang" data-id="${esc(id)}" aria-label="Buang ${esc(m.nama)}">${ic('x', 'i-s')}</button>
+        <div class="hstack" style="gap:6px;flex-wrap:wrap;flex-basis:100%"><input class="input grow" style="min-width:130px" data-f="pencapaian" list="plHL" value="${esc(v.pencapaian)}" aria-label="Pencapaian ${esc(m.nama)}">
+        <select class="input grow" style="min-width:160px" data-f="khidmat" aria-label="Khidmat sumbangan ${esc(m.nama)}">${khidmatOpts(v.khidmat)}</select></div></div>`;
+    }).join('')}</div>`;
+  };
+  sh.$('#plL').onchange = e => {
+    const i = e.target;
+    if (!i.matches('input[type=checkbox]')) return;
+    if (i.checked) st.pilih.set(i.value, { pencapaian: sh.$('#plH').value.trim(), khidmat: sh.$('#plK').value });
+    else st.pilih.delete(i.value);
+    drawPilih();
+  };
+  const ubahPilih = e => {
+    const el = e.target, row = el.closest('[data-pm]');
+    if (!row || !el.dataset.f) return;
+    const v = st.pilih.get(row.dataset.pm);
+    if (v) v[el.dataset.f] = el.value.trim();
+  };
+  sh.$('#plPilih').oninput = ubahPilih;
+  sh.$('#plPilih').onchange = ubahPilih;
+  sh.$('#plQ').oninput = debounce(e => { st.q = e.target.value; drawList(); }, 200);
+  sh.$('#plKelas').onchange = e => { st.kelas = e.target.value; drawList(); };
+  drawKat(); drawList(); drawPilih();
+}
+
+function openPelibatanGrup(r, g) {
+  const sh = openSheet({
+    title: g.aktiviti,
+    body: `<p class="muted" style="margin-top:0">${esc(((r.kategori.find(k => k.id === g.idKategori) || {}).nama) || '')}, peringkat ${esc(g.peringkat)}${g.tarikh ? ', ' + esc(fmtDate(g.tarikh)) : ''}</p>
+      <div class="list">${g.list.map((x, i) => `<button class="row row-wrap" data-act="plEdit" data-i="${i}"><div class="row-main"><div class="row-title">${esc(x.nama)}</div><div class="row-sub">${esc(x.kelas)}, ${esc(x.unit)}</div>
+        <div class="row-sub" style="white-space:normal">${esc(x.pencapaian || 'Tiada pencapaian')}${x.khidmat ? ' · Khidmat: ' + esc(khidmatLabel(x.khidmat)) : ''}</div></div>${ic('edit', 'i-s')}</button>`).join('')}</div>`,
+    foot: `<button class="btn" data-act="sheetClose">Tutup</button><button class="btn btn-primary" data-act="plTambah">${ic('plus', 'i-s')}Tambah murid</button>`,
+    acts: {
+      plEdit(el) { const x = g.list[Number(el.dataset.i)]; if (x) { sh.close(); openPelibatanEdit(x); } },
+      plTambah() { sh.close(); openPelibatanBaru(r, g); }
+    }
+  });
+}
+
+function openPelibatanEdit(x) {
+  const sh = openSheet({
+    title: x.nama,
+    body: `<p class="muted" style="margin-top:0">${esc(x.kelas)}, ${esc(x.unit)}</p>
+      <div class="field"><label for="peA">Aktiviti <span class="req">*</span></label><input class="input" id="peA" value="${esc(x.aktiviti)}"></div>
+      <div class="hstack" style="align-items:flex-start"><div class="field grow"><label for="peP">Peringkat</label><select class="input" id="peP">${PERINGKAT.map(p => `<option ${p === x.peringkat ? 'selected' : ''}>${p}</option>`).join('')}</select></div>
+      <div class="field grow"><label for="peT">Tarikh</label><input class="input" id="peT" type="date" max="${esc(today())}" value="${esc(x.tarikh)}"></div></div>
+      <div class="field"><label for="peH">Pencapaian</label><input class="input" id="peH" list="peHL" value="${esc(x.pencapaian)}"><datalist id="peHL">${HASIL.map(h => `<option value="${h}">`).join('')}</datalist></div>
+      <div class="field"><label for="peK">Khidmat sumbangan</label><select class="input" id="peK">${khidmatOpts(x.khidmat)}</select></div>`,
+    foot: `<button class="btn btn-danger" data-act="del">${ic('trash', 'i-s')}Padam</button><button class="btn btn-primary" data-act="save">Simpan</button>`,
+    acts: {
+      async save(el) {
+        const data = { id: x.id, aktiviti: sh.$('#peA').value.trim(), peringkat: sh.$('#peP').value, tarikh: sh.$('#peT').value, pencapaian: sh.$('#peH').value.trim(), khidmat: sh.$('#peK').value };
+        if (data.aktiviti.length < 5) return toast('Isi nama aktiviti.', 'warn');
+        await withBusy(el, async () => {
+          try { await api('simpanPelibatan', data); sh.close(); toast('Rekod dikemas kini.', 'ok'); selepasPelibatan(); }
+          catch (e) { toast(e.message, 'bad'); }
+        });
+      },
+      async del() {
+        if (!(await confirmDlg('Padam rekod pelibatan ' + esc(x.nama) + '?', { ok: 'Padam', danger: true }))) return;
+        try { await api('deletePencapaian', { id: x.id }); sh.close(); toast('Rekod dipadam.', 'ok'); selepasPelibatan(); }
+        catch (e) { toast(e.message, 'bad'); }
+      }
+    }
+  });
+}
+
 ROUTES.push(
   [/^#\/utama$/, pageHome],
   [/^#\/unit$/, pageUnits],
@@ -4290,7 +4467,8 @@ ROUTES.push(
   [/^#\/awam$/, pageAwam],
   [/^#\/sahkan$/, () => pageAdmin('sahkan')],
   [/^#\/kelas(?:\/([a-z]+))?$/, pageKelas],
-  [/^#\/pajsk$/, () => go('#/kelas/pajsk')]
+  [/^#\/pajsk$/, () => go('#/kelas/pajsk')],
+  [/^#\/pelibatan$/, pagePelibatan]
 );
 
 /* Satu pendengar klik untuk semua butang data-act (halaman dan lembaran) */

@@ -42,7 +42,7 @@ const SCHEMA = {
   Kehadiran: ['ID_Rekod', 'Tahun', 'ID_Unit', 'ID_Murid'].concat(P_COLS).concat(['Dikemaskini_Oleh', 'Tarikh_Kemaskini']),
   Laporan: ['ID_Laporan', 'Tahun', 'ID_Unit', 'ID_Perjumpaan', 'Versi_Format', 'Data_JSON', 'Bil_Hadir', 'Status', 'ID_Guru_Pelapor', 'Tarikh_Hantar', 'ID_Pengesah', 'Tarikh_Sah', 'Catatan_Pengesah', 'Tarikh_Kemaskini'],
   Format_Laporan: ['Versi', 'Tarikh_Cipta', 'Medan_JSON', 'Aktif'],
-  Pencapaian: ['ID', 'Tahun', 'ID_Murid', 'ID_Unit', 'Nama_Aktiviti', 'Peringkat', 'Pencapaian', 'Tarikh', 'ID_Fail_Bukti', 'Direkod_Oleh'],
+  Pencapaian: ['ID', 'Tahun', 'ID_Murid', 'ID_Unit', 'Nama_Aktiviti', 'Peringkat', 'Pencapaian', 'Tarikh', 'ID_Fail_Bukti', 'Direkod_Oleh', 'Khidmat'],
   Tetapan: ['Kunci', 'Nilai'],
   Pengumuman: ['ID', 'Tajuk', 'Isi', 'Tarikh_Mula', 'Tarikh_Tamat', 'Status', 'Dicipta_Oleh', 'Tarikh_Cipta'],
   Log: ['Masa', 'ID_Guru', 'Tindakan', 'Sheet', 'ID_Rekod', 'Nilai_Lama', 'Nilai_Baharu']
@@ -148,6 +148,8 @@ const ROUTES = {
   saveCarta: { fn: a_saveCarta, w: true },
   savePencapaian: { fn: a_savePencapaian, w: true },
   deletePencapaian: { fn: a_deletePencapaian, w: true },
+  pelibatanBorang: { fn: a_pelibatanBorang },
+  simpanPelibatan: { fn: a_simpanPelibatan, w: true },
   muridPicker: { fn: a_muridPicker },
   enrol: { fn: a_enrol, w: true },
   unenrol: { fn: a_unenrol, w: true },
@@ -972,7 +974,7 @@ function a_unit(d, ctx) {
   const laporan = rows_('Laporan').filter(l => l.Tahun === sesi && l.ID_Unit === idUnit).map(l => laporanOut_(l, users));
   const pencapaian = rows_('Pencapaian').filter(p => p.Tahun === sesi && p.ID_Unit === idUnit).map(p => ({
     id: p.ID, idMurid: p.ID_Murid, nama: (murid[p.ID_Murid] || {}).Nama_Murid || '', aktiviti: p.Nama_Aktiviti, peringkat: p.Peringkat,
-    pencapaian: p.Pencapaian, tarikh: p.Tarikh, idBukti: p.ID_Fail_Bukti, olehSaya: p.Direkod_Oleh === ctx.id
+    pencapaian: p.Pencapaian, tarikh: p.Tarikh, idBukti: p.ID_Fail_Bukti, khidmat: p.Khidmat || '', olehSaya: p.Direkod_Oleh === ctx.id
   })).sort((a, b) => String(b.tarikh).localeCompare(String(a.tarikh)));
   return {
     unit: { id: u.ID_Unit, nama: u.Nama_Unit, idKategori: u.ID_Kategori, status: u.Status || 'Aktif' },
@@ -1453,6 +1455,8 @@ function a_savePencapaian(d, ctx) {
     ID_Murid: ids[0], Nama_Aktiviti: clean_(d.aktiviti, 150), Peringkat: d.peringkat, Pencapaian: clean_(d.pencapaian, 80),
     Tarikh: isYmd_(d.tarikh) ? d.tarikh : '', ID_Fail_Bukti: clean_(d.idBukti, 80)
   };
+  if (d.khidmat !== undefined) patch.Khidmat = khidmatSah_(d.khidmat);
+  ensureSheet_(ss_(), 'Pencapaian'); delete T_.Pencapaian;
   if (d.id) {
     const p = rows_('Pencapaian').find(x => x.ID === d.id && x.ID_Unit === idUnit);
     if (!p) throw fail_('Rekod tidak dijumpai.');
@@ -1467,11 +1471,101 @@ function a_savePencapaian(d, ctx) {
 function a_deletePencapaian(d, ctx) {
   const p = rows_('Pencapaian').find(x => x.ID === d.id);
   if (!p) throw fail_('Rekod tidak dijumpai.');
-  const role = needUnit_(ctx, p.ID_Unit);
-  if (role === 'Penasihat' && p.Direkod_Oleh !== ctx.id) throw fail_('Hanya perekod atau ketua unit boleh memadam rekod ini.', 'FORBIDDEN');
+  // Perekod sentiasa boleh memadam rekod sendiri (termasuk guru bukan guru unit melalui halaman Pelibatan)
+  if (p.Direkod_Oleh !== ctx.id) {
+    const role = needUnit_(ctx, p.ID_Unit);
+    if (role === 'Penasihat') throw fail_('Hanya perekod atau ketua unit boleh memadam rekod ini.', 'FORBIDDEN');
+  }
   removeMany_('Pencapaian', [p]);
   log_(ctx.id, 'Padam pencapaian', 'Pencapaian', p.ID, p.Nama_Aktiviti, '');
   return { ok: true };
+}
+
+/* =========================================================================
+ * PELIBATAN PAJSK OLEH SEMUA GURU
+ * Mana-mana guru aktif (bukan hanya guru unit) boleh merekod penyertaan, pencapaian dan
+ * khidmat sumbangan murid. Rekod terus masuk dan dilekatkan pada unit murid dalam kategori
+ * yang dipilih, supaya templat PAJSK MOEIS terus terisi.
+ * ========================================================================= */
+function khidmatSah_(v) { return SPPB.khidmat.indexOf(String(v || '')) >= 0 ? String(v) : ''; }
+
+function a_pelibatanBorang(d, ctx) {
+  const sesi = ctx.sesi;
+  const kats = rows_('Kategori').filter(k => k.Status !== 'Tidak Aktif' && tabKategori_(k))
+    .sort((a, b) => Number(a.Susunan) - Number(b.Susunan));
+  const kSet = mapBy_(kats, 'ID_Kategori');
+  const unit = {}, katUnit = {};
+  rows_('Unit').forEach(u => { unit[u.ID_Unit] = u.Nama_Unit; katUnit[u.ID_Unit] = u.ID_Kategori; });
+  const ada = {};
+  rows_('Enrolmen').forEach(e => {
+    if (e.Tahun === sesi && e.Status === 'Aktif' && kSet[e.ID_Kategori]) (ada[e.ID_Murid] = ada[e.ID_Murid] || {})[e.ID_Kategori] = e.ID_Unit;
+  });
+  const semua = mapBy_(rows_('Murid'), 'ID_Murid');
+  const murid = rows_('Murid').filter(layak_)
+    .sort((a, b) => String(a.Kelas).localeCompare(String(b.Kelas), 'ms', { numeric: true }) || a.Nama_Murid.localeCompare(b.Nama_Murid))
+    .map(m => [m.ID_Murid, m.Nama_Murid, m.Kelas, ada[m.ID_Murid] || {}]);
+  const rekod = rows_('Pencapaian').filter(p => p.Tahun === sesi && p.Direkod_Oleh === ctx.id).map(p => {
+    const m = semua[p.ID_Murid] || {};
+    return { id: p.ID, idMurid: p.ID_Murid, nama: m.Nama_Murid || '(rekod murid tiada)', kelas: m.Kelas || '', idUnit: p.ID_Unit, unit: unit[p.ID_Unit] || '',
+      idKategori: katUnit[p.ID_Unit] || '', aktiviti: p.Nama_Aktiviti, peringkat: p.Peringkat, pencapaian: p.Pencapaian, tarikh: p.Tarikh, khidmat: p.Khidmat || '' };
+  }).sort((a, b) => String(b.tarikh).localeCompare(String(a.tarikh)) || a.aktiviti.localeCompare(b.aktiviti) || a.nama.localeCompare(b.nama));
+  return {
+    kategori: kats.map(k => ({ id: k.ID_Kategori, nama: k.Nama_Kategori, tab: tabKategori_(k) })),
+    unit: unit, murid: murid, rekod: rekod, khidmat: SPPB.khidmat
+  };
+}
+
+function a_simpanPelibatan(d, ctx) {
+  ensureSheet_(ss_(), 'Pencapaian'); delete T_.Pencapaian;
+  const sesi = ctx.sesi;
+  const aktiviti = clean_(d.aktiviti, 150);
+  if (aktiviti.length < 5) throw fail_('Isi nama aktiviti atau pertandingan.');
+  if (PERINGKAT.indexOf(d.peringkat) < 0) throw fail_('Pilih peringkat.');
+  const tarikh = isYmd_(d.tarikh) ? d.tarikh : '';
+  if (tarikh && tarikh > today_()) throw fail_('Tarikh tidak boleh selepas hari ini.');
+
+  // Sunting satu rekod: perekod, ketua unit atau Super Admin
+  if (d.id) {
+    const p = rows_('Pencapaian').find(x => x.ID === d.id && x.Tahun === sesi);
+    if (!p) throw fail_('Rekod tidak dijumpai.');
+    if (p.Direkod_Oleh !== ctx.id && !ctx.super && unitRole_(ctx, p.ID_Unit) !== 'Admin') throw fail_('Hanya perekod atau ketua unit boleh menyunting rekod ini.', 'FORBIDDEN');
+    update_('Pencapaian', p, { Nama_Aktiviti: aktiviti, Peringkat: d.peringkat, Tarikh: tarikh, Pencapaian: clean_(d.pencapaian, 80), Khidmat: khidmatSah_(d.khidmat) });
+    log_(ctx.id, 'Sunting pelibatan', 'Pencapaian', p.ID, '', aktiviti);
+    return { bil: 1, tanpaUnit: [], sudahAda: 0 };
+  }
+
+  // Rekod baharu untuk ramai murid
+  const kat = rows_('Kategori').find(k => k.ID_Kategori === d.idKategori && k.Status !== 'Tidak Aktif');
+  if (!kat || !tabKategori_(kat)) throw fail_('Pilih kategori (Kelab, Beruniform atau Sukan).');
+  const list = Array.isArray(d.murid) ? d.murid : [];
+  if (!list.length) throw fail_('Pilih sekurang-kurangnya seorang murid.');
+  if (list.length > 300) throw fail_('Maksimum 300 murid bagi satu rekod.');
+  const murid = mapBy_(rows_('Murid').filter(layak_), 'ID_Murid');
+  const unitMurid = {};
+  rows_('Enrolmen').forEach(e => { if (e.Tahun === sesi && e.Status === 'Aktif' && e.ID_Kategori === kat.ID_Kategori) unitMurid[e.ID_Murid] = e.ID_Unit; });
+  const wujud = {};
+  rows_('Pencapaian').forEach(p => { if (p.Tahun === sesi) wujud[p.ID_Murid + '|' + p.ID_Unit + '|' + p.Nama_Aktiviti.toLowerCase() + '|' + p.Tarikh] = 1; });
+  const add = [], tanpaUnit = [], seen = {};
+  let sudahAda = 0;
+  list.forEach(x => {
+    const id = String((x && x.idMurid) || '');
+    if (!id || seen[id]) return;
+    seen[id] = 1;
+    const m = murid[id];
+    if (!m) return;
+    const idU = unitMurid[id];
+    if (!idU) { tanpaUnit.push(m.Nama_Murid); return; }
+    if (wujud[id + '|' + idU + '|' + aktiviti.toLowerCase() + '|' + tarikh]) { sudahAda++; return; }
+    add.push({ ID: uid_('PC'), Tahun: sesi, ID_Murid: id, ID_Unit: idU, Nama_Aktiviti: aktiviti, Peringkat: d.peringkat,
+      Pencapaian: clean_(x.pencapaian, 80), Tarikh: tarikh, ID_Fail_Bukti: '', Direkod_Oleh: ctx.id, Khidmat: khidmatSah_(x.khidmat) });
+  });
+  if (!add.length) {
+    if (sudahAda) throw fail_('Semua murid yang dipilih sudah direkod untuk aktiviti dan tarikh ini.');
+    throw fail_('Tiada murid yang dipilih mempunyai unit ' + kat.Nama_Kategori + '. Daftarkan unit murid dahulu.');
+  }
+  insertMany_('Pencapaian', add);
+  log_(ctx.id, 'Rekod pelibatan', 'Pencapaian', '', '', aktiviti + ' (' + d.peringkat + '): ' + add.length + ' murid');
+  return { bil: add.length, tanpaUnit: tanpaUnit, sudahAda: sudahAda };
 }
 
 /* =========================================================================
@@ -2087,6 +2181,9 @@ function a_pajskMoeis(d, ctx) {
           if (sk > capSkor) { capSkor = sk; capP = pr; capT = t; }
         });
       }
+      // Khidmat sumbangan: rekod terkini murid bagi unit ini; jika tiada, tetapan lalai sekolah
+      const kd = rec.filter(x => x.Khidmat).sort((a, b) => String(b.Tarikh).localeCompare(String(a.Tarikh)));
+      const khidmat = kd.length ? kd[0].Khidmat : (p.PAJSK_KHIDMAT || '');
       if (ada[tab]) {
         out.Tambahan.push([id, m.Nama_Murid, SPPB.tab[tab], akt, pelP, pelN, capP, capT]);
         return;
@@ -2095,7 +2192,7 @@ function a_pajskMoeis(d, ctx) {
       const nK = pct == null ? 0 : pct >= 80 ? 4 : pct >= 60 ? 3 : pct >= 40 ? 2 : pct > 0 ? 1 : 0;
       const kom = p.komitmen.slice(0, nK);
       while (kom.length < 4) kom.push('');
-      out[tab].push([id, m.Nama_Murid, 'Ya', akt, jawatanSPPB_(jaw[key], tab, pct, p), pelP, pelN, capP, capT].concat(kom, [p.PAJSK_KHIDMAT || '', Math.min(12, hadir)]));
+      out[tab].push([id, m.Nama_Murid, 'Ya', akt, jawatanSPPB_(jaw[key], tab, pct, p), pelP, pelN, capP, capT].concat(kom, [khidmat, Math.min(12, hadir)]));
     });
     const kurang = ['Kelab', 'Beruniform', 'Sukan'].filter(t => !ada[t] && kat.some(k => tabOf[k.ID_Kategori] === t));
     if (kurang.length) tiadaUnit.push({ nama: m.Nama_Murid, kelas: m.Kelas, tab: kurang });
