@@ -267,6 +267,14 @@ select.is-chg{border-color:var(--gold);background:var(--gold-soft)}
 .bulkbar .btn{background:rgba(255,255,255,.15);color:#fff;border-color:transparent}
 @media (min-width:920px){.bulkbar{bottom:16px}}
 button.stat{font:inherit;color:inherit;width:100%}
+.an-card{text-align:left;cursor:pointer;border-left:4px solid var(--c)!important;position:relative}
+.an-card b small{font-size:15px;color:var(--ink-3);font-weight:600}
+.an-card .an-bar{height:6px;border-radius:3px;background:var(--line-2);margin-top:10px;overflow:hidden}
+.an-card .an-bar i{display:block;height:100%;background:var(--c);border-radius:3px}
+.an-card .an-belum{display:block;margin-top:6px;font-size:12.5px;font-weight:700}
+.an-card:hover{border-color:var(--c)}
+.an-grp{display:flex;align-items:center;gap:8px;margin:14px 2px 6px;font-weight:700}
+.an-grp .chip{margin-left:auto}
 .stat.is-on{background:var(--primary-soft);border-color:var(--primary)}
 .att-row.is-pre .chip{white-space:nowrap}
 .att-row .row-title{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.25}
@@ -3462,6 +3470,7 @@ function kelasUnitView(r, prefix) {
   const counters = () => {
     const n = Object.keys(pending).length;
     S.dirty = n > 0;
+    const an = $('#kuAn'); if (an) an.innerHTML = analisaIsi();
     const b = $('#kuSave'); if (b) { b.disabled = !n; b.textContent = n ? `Simpan ${n} perubahan` : 'Tiada perubahan'; }
     const bel = r.murid.filter(m => kurang(m)).length;
     const a = $('#kuStat'); if (a) a.innerHTML = `<div class="stat"><b>${r.murid.length}</b><span>Murid kelas ${esc(r.kelas)}</span></div><div class="stat"><b style="color:var(--ok)">${r.murid.length - bel}</b><span>Lengkap berunit</span></div><div class="stat ${bel ? 'alert' : ''}"><b>${bel}</b><span>Belum lengkap</span></div>`;
@@ -3480,6 +3489,42 @@ function kelasUnitView(r, prefix) {
     return r.murid.filter(m => (!st.belum || kurang(m)) && (!q || m.nama.toLowerCase().includes(q)));
   };
 
+  /* Analisa bilangan murid kelas bagi setiap kategori (termasuk pilihan yang belum disimpan) */
+  const analisa = k => {
+    const ikut = {}, belum = [];
+    r.murid.forEach(m => { const v = cur(m, k.id); if (v) (ikut[v] = ikut[v] || []).push(m); else belum.push(m); });
+    return { ikut, belum, ada: r.murid.length - belum.length };
+  };
+  const analisaHtml = () => `<div id="kuAn">${analisaIsi()}</div>`;
+  const analisaIsi = () => {
+    const n = r.murid.length, ubah = Object.keys(pending).length;
+    return `<div class="sec" style="margin-top:0"><h2 style="font-size:18px">Analisa kelas ${esc(r.kelas)}</h2><span class="small muted">Tekan kad untuk senarai nama</span></div>
+      <div class="stat-grid" style="margin-bottom:${ubah ? 6 : 14}px">${kats.map(k => {
+        const a = analisa(k), pct = n ? Math.round(a.ada / n * 100) : 0, nu = Object.keys(a.ikut).length;
+        return `<button type="button" class="stat an-card" data-act="kuAnalisa" data-id="${esc(k.id)}" style="--c:${katColor(k.id)}" aria-label="Senarai murid ${esc(k.nama)}">
+          <b>${a.ada}<small> / ${n}</small></b><span>${esc(k.nama)}${k.wajib ? '' : ' (pilihan)'}</span>
+          <div class="an-bar"><i style="width:${pct}%"></i></div>
+          <span class="an-belum" style="color:${a.belum.length && k.wajib ? 'var(--bad)' : 'var(--ink-3)'}">${a.belum.length ? a.belum.length + ' belum berunit' : 'Semua berunit'}${nu ? ', ' + nu + ' unit' : ''}</span></button>`;
+      }).join('')}</div>${ubah ? `<p class="hint" style="margin:0 2px 14px">Analisa termasuk ${ubah} perubahan yang belum disimpan.</p>` : ''}`;
+  };
+  const bukaAnalisa = idK => {
+    const k = kats.find(x => x.id === idK);
+    if (!k) return;
+    const a = analisa(k);
+    const baris = L => `<div class="list">${L.slice().sort((x, y) => x.nama.localeCompare(y.nama)).map((m, i) => `<div class="row" style="min-height:48px"><span class="muted small" style="width:22px;text-align:right">${i + 1}.</span><div class="row-main"><div class="row-title">${esc(m.nama)}</div></div>${m.jantina ? `<span class="chip">${esc(m.jantina)}</span>` : ''}</div>`).join('')}</div>`;
+    const unitList = Object.keys(a.ikut).map(id => ({ id, u: unitOf(id) || { nama: 'Unit', id }, L: a.ikut[id] }))
+      .sort((x, y) => y.L.length - x.L.length || x.u.nama.localeCompare(y.u.nama));
+    const lj = L => { const l = L.filter(m => m.jantina === 'L').length, p = L.filter(m => m.jantina === 'P').length; return l + p ? ` (L ${l}, P ${p})` : ''; };
+    openSheet({
+      title: k.nama + ': kelas ' + r.kelas, full: true,
+      body: `<div class="stat-grid stat-3" style="margin-bottom:8px"><div class="stat"><b>${r.murid.length}</b><span>Murid kelas</span></div><div class="stat"><b style="color:var(--ok)">${a.ada}</b><span>Berunit</span></div><div class="stat ${a.belum.length && k.wajib ? 'alert' : ''}"><b>${a.belum.length}</b><span>Belum berunit</span></div></div>
+        ${a.belum.length ? `<div class="an-grp" style="color:var(--bad)">${ic('alert', 'i-s')}Belum berunit<span class="chip chip-warn">${a.belum.length}${esc(lj(a.belum))}</span></div>${baris(a.belum)}` : ''}
+        ${unitList.map(x => `<div class="an-grp">${patchHtml(x.u, 'patch-s')}${esc(x.u.nama)}<span class="chip">${x.L.length} murid${esc(lj(x.L))}</span></div>${baris(x.L)}`).join('')}
+        ${!unitList.length && !a.belum.length ? emptyHtml('users', 'Tiada murid', '') : ''}`,
+      foot: `<button class="btn btn-primary" data-act="sheetClose">Tutup</button>`
+    });
+  };
+
   const draw = () => {
     let body = '';
     if (st.mode === 'murid') {
@@ -3492,7 +3537,7 @@ function kelasUnitView(r, prefix) {
       const us = r.unit.filter(u => u.idKategori === k.id);
       if (!us.some(u => u.id === st.unit)) st.unit = (us[0] || {}).id || '';
       const L = r.murid.filter(m => !st.q || m.nama.toLowerCase().includes(st.q.trim().toLowerCase()));
-      body = `<div class="pills" style="margin-bottom:8px;flex-wrap:wrap">${kats.map(x => `<button type="button" class="${x.id === k.id ? 'on' : ''}" data-act="kuKat" data-id="${esc(x.id)}">${esc(x.nama)}</button>`).join('')}</div>
+      body = `${analisaHtml()}<div class="pills" style="margin-bottom:8px;flex-wrap:wrap">${kats.map(x => `<button type="button" class="${x.id === k.id ? 'on' : ''}" data-act="kuKat" data-id="${esc(x.id)}">${esc(x.nama)}</button>`).join('')}</div>
         <div class="field" style="margin-bottom:8px"><label for="kuUnit">Unit</label><select class="input" id="kuUnit">${us.map(u => `<option value="${esc(u.id)}" ${u.id === st.unit ? 'selected' : ''}>${esc(u.nama)} (${u.ahli} ahli)</option>`).join('')}</select></div>
         <div class="spread" style="margin-bottom:8px"><span class="small muted">Tanda murid untuk unit ini</span><button type="button" class="btn btn-sm btn-ghost" data-act="kuBaki">Pilih yang belum berunit</button></div>
         <div class="list" id="kuTick">${L.map(m => { const v = cur(m, k.id), u = unitOf(v); return `<label class="row mrow" style="cursor:pointer"><input type="checkbox" data-m="${esc(m.id)}" ${v && v === st.unit ? 'checked' : ''}><div class="row-main"><div class="row-title">${esc(m.nama)}</div><div class="row-sub">${u ? esc(u.nama) : 'Belum berunit'}${key(m.id, k.id) in pending ? ' (belum disimpan)' : ''}</div></div></label>`; }).join('')}</div>`;
@@ -3535,6 +3580,7 @@ function kelasUnitView(r, prefix) {
     retry: () => route(),
     kuMode(el) { st.mode = el.dataset.m; draw(); },
     kuKat(el) { st.kat = el.dataset.id; st.unit = ''; draw(); },
+    kuAnalisa(el) { bukaAnalisa(el.dataset.id); },
     kuBaki() {
       let n = 0;
       r.murid.forEach(m => { if (!cur(m, st.kat)) { setVal(m, st.kat, st.unit); n++; } });
