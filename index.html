@@ -2852,7 +2852,7 @@ function openImport() {
     const tahun = map.tahun >= 0 ? parseTahun(r[map.tahun]) : '';
     let kelas = String(r[map.kelas] || '').trim();
     if (kelas && !/^\d/.test(kelas) && tahun) kelas = tahun + ' ' + kelas;
-    return { nama: String(r[map.nama]).trim(), kelas, jantina: map.jantina >= 0 ? r[map.jantina] || '' : '', ic: map.ic >= 0 ? String(r[map.ic] || '').replace(/\D/g, '') : '' };
+    return { nama: String(r[map.nama]).trim(), kelas, jantina: map.jantina >= 0 ? r[map.jantina] || '' : '', ic: map.ic >= 0 ? String(r[map.ic] || '').replace(/\D/g, '').replace(/^(\d{11})$/, '0$1') : '' };
   };
   async function buildRows() {
     const out = [];

@@ -192,7 +192,19 @@ function handle_(req) {
     if (!r) throw fail_('Tindakan tidak dikenali.');
     const ctx = r.pub ? null : auth_(req.token);
     if (ctx && ctx.user.Tukar_Kata_Laluan === 'Ya' && !r.pw) throw fail_('Sila tukar kata laluan lalai anda dahulu.', 'PWCHANGE');
-    const run = function () { return r.fn(req.data || {}, ctx); };
+    const run = function () {
+      // Tindakan menulis: baca semula data selepas kunci diperoleh. Data yang dibaca sebelum kunci
+      // (contohnya Token dan Users semasa auth_) mungkin sudah lapuk dan nombor barisnya boleh beralih.
+      if (r.w) {
+        Object.keys(T_).forEach(k => { delete T_[k]; });
+        if (ctx) {
+          const u = rows_('Users').find(x => x.ID_Guru === ctx.id);
+          if (!u || u.Status !== 'Aktif') throw fail_('Akaun anda tidak aktif.', 'AUTH');
+          ctx.user = u;
+        }
+      }
+      return r.fn(req.data || {}, ctx);
+    };
     let data = r.w ? withLock_(run, r.ns) : run();
     if (r.then) data = r.then(data);
     return { ok: true, data: data === undefined ? null : data, ms: Date.now() - t0 };
@@ -331,17 +343,34 @@ function toArr_(t, o) { return t.head.map(h => cell_(o[h])); }
 
 function insert_(name, o) { return insertMany_(name, [o])[0]; }
 
+/**
+ * Tambah baris di hujung sheet.
+ * - Jika jadual belum dibaca dalam panggilan ini, hanya baris tajuk dibaca (tidak membaca semua
+ *   baris Log/Token setiap kali menulis satu baris).
+ * - Julat baharu ditetapkan sebagai teks (@) supaya baris selepas baris 1000 tidak ditukar oleh
+ *   Sheets kepada nombor/tarikh (contoh: 0123456789 -> 123456789).
+ */
 function insertMany_(name, objs) {
   if (!objs.length) return objs;
-  const t = table_(name);
+  const loaded = T_[name];
+  const t = loaded || headOnly_(name);
   const start = t.sh.getLastRow() + 1;
-  t.sh.getRange(start, 1, objs.length, t.head.length).setValues(objs.map(o => toArr_(t, o)));
+  const need = start + objs.length - 1 - t.sh.getMaxRows();
+  if (need > 0) t.sh.insertRowsAfter(t.sh.getMaxRows(), need);
+  t.sh.getRange(start, 1, objs.length, t.head.length).setNumberFormat('@').setValues(objs.map(o => toArr_(t, o)));
   objs.forEach((o, i) => {
     o._row = start + i;
     t.head.forEach(h => { o[h] = (o[h] === undefined || o[h] === null) ? '' : String(o[h]); });
-    t.rows.push(o);
+    if (loaded) loaded.rows.push(o);
   });
   return objs;
+}
+
+function headOnly_(name) {
+  const sh = sheet_(name);
+  const lastCol = sh.getLastColumn();
+  const head = lastCol ? sh.getRange(1, 1, 1, lastCol).getValues()[0].map(String) : [];
+  return { sh: sh, head: head, rows: [] };
 }
 
 function update_(name, o, patch) {
@@ -645,8 +674,11 @@ function a_forgotRequest(d) {
   const emel = String(d.emel || '').toLowerCase().trim();
   const u = rows_('Users').find(r => r.Emel === emel && r.Status === 'Aktif');
   if (u) {
-    const kod = String(Math.floor(100000 + Math.random() * 900000));
     const old = rows_('Token').filter(t => t.Jenis === 'Reset' && t.ID_Guru === u.ID_Guru);
+    // Elak emel berulang (spam / kuota MailApp habis): satu kod setiap 2 minit
+    const had = Utilities.formatDate(new Date(Date.now() - 2 * 60000), TZ, 'yyyy-MM-dd HH:mm:ss');
+    if (old.some(t => t.Tarikh_Cipta > had)) return { ok: true };
+    const kod = String(100000 + parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 8), 16) % 900000);
     if (old.length) removeMany_('Token', old);
     insert_('Token', { Token: sha_(kod + u.Salt), ID_Guru: u.ID_Guru, Jenis: 'Reset', Tarikh_Cipta: now_(), Tarikh_Luput: plusMin_(15) });
     MailApp.sendEmail({
@@ -695,6 +727,8 @@ function a_changePassword(d, ctx) {
   if (pw === String(d.lama || '')) throw fail_('Kata laluan baharu mesti berbeza daripada kata laluan semasa.');
   const salt = Utilities.getUuid();
   update_('Users', u, { Salt: salt, Hash_Kata_Laluan: hashPw_(pw, salt), Tukar_Kata_Laluan: '' });
+  // Tamatkan sesi lain (peranti lain) selepas kata laluan ditukar; sesi semasa dikekalkan
+  killTokens_(rows_('Token').filter(t => t.ID_Guru === ctx.id && t.Token !== ctx.token));
   log_(ctx.id, 'Tukar kata laluan', 'Users', ctx.id, '', '');
   return { ok: true };
 }
@@ -914,7 +948,7 @@ function a_unit(d, ctx) {
     const m = murid[e.ID_Murid] || {};
     return { idEnrolmen: e.ID_Enrolmen, id: e.ID_Murid, nama: m.Nama_Murid || '(rekod murid tiada)', kelas: m.Kelas || e.Kelas, jantina: m.Jantina || '', masuk: e.Tarikh_Masuk || '' };
   }).sort((a, b) => a.nama.localeCompare(b.nama));
-  const isAdmin = role !== 'Penasihat';
+  const isAdmin = role === 'Admin' || role === 'Super';
   const guru = rows_('Guru_Unit').filter(g => g.Tahun === sesi && g.ID_Unit === idUnit && (g.Status === 'Aktif' || (isAdmin && g.Status === 'Menunggu'))).map(g => {
     const x = users[g.ID_Guru] || {};
     return { id: g.ID, idGuru: g.ID_Guru, nama: x.Nama || '', emel: x.Emel || '', telefon: x.No_Telefon || '', gambar: x.ID_Gambar || '', peranan: g.Peranan_Unit, status: g.Status };
@@ -1229,6 +1263,9 @@ function a_statusLaporan(d, ctx) {
   if (!l) throw fail_('Laporan tidak dijumpai.');
   if (d.status !== 'Disahkan' && d.status !== 'Dikembalikan') throw fail_('Status tidak sah.');
   if (d.status === 'Dikembalikan' && !clean_(d.catatan, 10)) throw fail_('Nyatakan pembetulan yang diperlukan.');
+  // Hanya laporan yang dihantar boleh disahkan/dikembalikan. Super Admin boleh membuka semula laporan yang telah disahkan.
+  const bolehUbah = l.Status === 'Dihantar' || (ctx.super && l.Status === 'Disahkan' && d.status === 'Dikembalikan');
+  if (!bolehUbah) throw fail_('Laporan ini berstatus ' + (l.Status || 'Draf') + ' dan tidak boleh di' + (d.status === 'Disahkan' ? 'sahkan' : 'kembalikan') + '. Muat semula senarai.');
   update_('Laporan', l, {
     Status: d.status, ID_Pengesah: ctx.id, Tarikh_Sah: d.status === 'Disahkan' ? now_() : '', Catatan_Pengesah: clean_(d.catatan, 500)
   });
@@ -1679,12 +1716,21 @@ function importCore_(list, tandaTiada, who) {
       baru++;
     }
   });
+  const pindah = {};
   if (tandaTiada) {
     t.rows.forEach(r => {
-      if (r.ID_APDM && !seen[r.ID_APDM] && r.Status === 'Aktif') { r.Status = 'Berpindah'; r.Tarikh_Kemaskini = now; tiada++; }
+      if (r.ID_APDM && !seen[r.ID_APDM] && r.Status === 'Aktif') { r.Status = 'Berpindah'; r.Tarikh_Kemaskini = now; tiada++; pindah[r.ID_Murid] = 1; }
     });
   }
   if (kemas || tiada) writeAll_('Murid');
+  // Sama seperti a_bulkMurid: murid berpindah dikeluarkan daripada unit sesi semasa
+  if (tiada) {
+    const sesi = sesi_();
+    const te = table_('Enrolmen');
+    let keluar = 0;
+    te.rows.forEach(e => { if (pindah[e.ID_Murid] && e.Tahun === sesi && e.Status === 'Aktif') { e.Status = 'Keluar'; keluar++; } });
+    if (keluar) writeAll_('Enrolmen');
+  }
   insertMany_('Murid', add);
   log_(who, 'Import murid', 'Murid', '', '', 'baru ' + baru + ', dikemas kini ' + kemas + ', ditanda berpindah ' + tiada);
   return { baru: baru, kemas: kemas, sama: sama, tiada: tiada };
@@ -3109,7 +3155,8 @@ function importDariTab() {
     const tahun = cTahun >= 0 ? parseTahun_(r[cTahun]) : '';
     let kelas = String(r[cKelas] || '').trim();
     if (kelas && !/^\d/.test(kelas) && tahun) kelas = tahun + ' ' + kelas;
-    const ic = cIc >= 0 ? String(r[cIc] || '').replace(/\D/g, '') : '';
+    let ic = cIc >= 0 ? String(r[cIc] || '').replace(/\D/g, '') : '';
+    if (ic.length === 11) ic = '0' + ic;   // sifar di hadapan hilang jika sel berformat nombor
     list.push({ k: ic.length >= 6 ? 'K' + sha_(ic).slice(0, 20) : namaKunci_(nama), nama: nama, kelas: kelas, jantina: cJan >= 0 ? r[cJan] : '' });
   }
   const res = withLock_(() => importCore_(list, false, 'menu'));
