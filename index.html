@@ -3360,7 +3360,7 @@ function muatTurunBlob(name, blob) {
 const MOEIS_TAB = [['Kelab', 'Kelab'], ['Beruniform', 'Beruniform'], ['Sukan', 'Sukan'], ['Ekstra', 'Ekstra'], ['Tambahan', 'Tambahan']];
 const MOEIS_HEAD = {
   main: ['ID Pengenalan', 'Nama', 'Ditaksir', 'Aktiviti Kokurikulum', 'Jawatan', 'Pelibatan: Peringkat', 'Pelibatan: Nombor', 'Pencapaian: Peringkat', 'Pencapaian: Tahap', 'Komitmen 1', 'Komitmen 2', 'Komitmen 3', 'Komitmen 4', 'Khidmat Sumbangan', 'Kehadiran'],
-  Ekstra: ['ID Pengenalan', 'Nama', 'Ditaksir'],
+  Ekstra: ['ID Pengenalan', 'Nama', 'Ditaksir', 'Anugerah Khas (Perkara)', 'Anugerah Khas (Tahap)', 'KM: Kejiranan/Komuniti', 'KM: Alam Sekitar', 'KM: Bencana Alam', 'KM: Kerohanian', 'KM: Jabatan/Agensi', 'KM: Kebudayaan/Kesenian/Integrasi', 'KM: Insaniah', 'Program NILAM', 'Perkhidmatan'],
   Tambahan: ['ID Pengenalan', 'Nama', 'Tab', 'Aktiviti Tambahan', 'Pelibatan: Peringkat', 'Pelibatan: Nombor', 'Pencapaian: Peringkat', 'Pencapaian: Tahap']
 };
 /** Muat turun templat MOEIS bagi satu kelas (atau semua kelas untuk Super Admin) */
@@ -4289,31 +4289,67 @@ async function saveProfil(data) {
  * LALUAN, PERISTIWA GLOBAL DAN PERMULAAN
  * ========================================================================= */
 /* =========================================================================
- * PELIBATAN PAJSK: semua guru merekod penyertaan, pencapaian dan khidmat sumbangan murid
+ * PELIBATAN PAJSK: semua guru merekod pelibatan murid mengikut templat PAJSK MOEIS
+ *   Tab Kelab / Beruniform / Sukan : penyertaan, pencapaian, khidmat sumbangan (dilekat pada unit murid)
+ *   Tab Ekstra                     : Anugerah Khas, Khidmat Masyarakat, Program NILAM, Perkhidmatan
  * ========================================================================= */
+const JENIS_PL = {
+  UNIT: { nama: 'Aktiviti Kelab, Beruniform atau Sukan', ic: 'flag', sub: 'Pertandingan, program, karnival, kursus. Pelibatan, Pencapaian dan Khidmat Sumbangan.' },
+  ANUGERAH: { nama: 'Anugerah Khas', ic: 'award', sub: 'Anugerah Remaja Perdana, Pengakap Raja, Anugerah Khas Kokurikulum dan lain-lain.' },
+  KHIDMAT: { nama: 'Khidmat Masyarakat', ic: 'users', sub: 'Gotong-royong, kerohanian, bantuan bencana, kebudayaan dan lain-lain (dikira 1 hingga 5 kali).' },
+  NILAM: { nama: 'Program NILAM', ic: 'file', sub: 'Tahap bintang NILAM murid.' },
+  PERKHIDMATAN: { nama: 'Perkhidmatan', ic: 'shield', sub: 'Ketua murid, pengawas, ketua kelas dan jawatan perkhidmatan lain.' }
+};
+const labelKhid = v => { const [t, m] = String(v || '').split('|'); return t ? t.charAt(0) + t.slice(1).toLowerCase() + (m ? ' (' + m + ' mata)' : '') : ''; };
+const labelUp = v => { const t = String(v || ''); return t ? t.charAt(0) + t.slice(1).toLowerCase() : ''; };
+const optsDari = (list, v, label = x => x, kosong) => (kosong != null ? `<option value="">${esc(kosong)}</option>` : '') + list.map(x => `<option value="${esc(x)}" ${x === v ? 'selected' : ''}>${esc(label(x))}</option>`).join('');
+
 async function pagePelibatan() {
-  setTitle('Pelibatan PAJSK', 'Penyertaan, pencapaian dan khidmat murid');
+  setTitle('Pelibatan PAJSK', 'Rekod pelibatan murid mengikut templat MOEIS');
   S.acts.retry = () => route();
   await admLoad('pelibatan', 'pelibatanBorang', {}, r => pelibatanView(r), 20000);
+}
+
+/** Ringkasan satu kumpulan rekod Ekstra untuk paparan */
+function ekstraTajuk(g) {
+  if (g.jenis === 'ANUGERAH') return labelUp(g.perkara);
+  if (g.jenis === 'KHIDMAT') return g.aktiviti || 'Khidmat masyarakat';
+  if (g.jenis === 'NILAM') return g.aktiviti || 'Program NILAM';
+  return g.aktiviti || 'Perkhidmatan';
+}
+function ekstraNilaiLabel(x) {
+  if (x.jenis === 'ANUGERAH') return x.nilai;
+  if (x.jenis === 'KHIDMAT') return x.perkara;
+  if (x.jenis === 'NILAM') return x.nilai;
+  return labelKhid(x.perkara);
 }
 
 function pelibatanView(r) {
   const katNama = id => ((r.kategori.find(k => k.id === id) || K(id) || {}).nama) || '';
   const grup = [], gi = {};
-  r.rekod.forEach(x => {
-    const k = [x.aktiviti, x.tarikh, x.peringkat, x.idKategori].join('|');
-    if (!gi[k]) { gi[k] = { aktiviti: x.aktiviti, tarikh: x.tarikh, peringkat: x.peringkat, idKategori: x.idKategori, list: [] }; grup.push(gi[k]); }
-    gi[k].list.push(x);
-  });
-  main(`${bannerHtml('', 'info', 'Semua guru boleh merekod pelibatan murid, walaupun bukan guru unit murid tersebut. Rekod dilekatkan pada unit murid dalam kategori yang dipilih dan terus digunakan dalam templat <b>PAJSK MOEIS</b> (Pelibatan, Pencapaian dan Khidmat Sumbangan).')}
+  const tambah = (k, o, x) => { if (!gi[k]) { gi[k] = Object.assign(o, { list: [] }); grup.push(gi[k]); } gi[k].list.push(x); };
+  r.rekod.forEach(x => tambah(['U', x.aktiviti, x.tarikh, x.peringkat, x.idKategori].join('|'), { jenis: 'UNIT', aktiviti: x.aktiviti, tarikh: x.tarikh, peringkat: x.peringkat, idKategori: x.idKategori }, x));
+  (r.ekstra || []).forEach(x => tambah(['E', x.jenis, x.jenis === 'KHIDMAT' || x.jenis === 'ANUGERAH' ? x.perkara : '', x.aktiviti, x.tarikh].join('|'), { jenis: x.jenis, perkara: x.perkara, aktiviti: x.aktiviti, tarikh: x.tarikh }, x));
+  grup.sort((a, b) => String(b.tarikh).localeCompare(String(a.tarikh)));
+  const ikon = g => g.jenis === 'UNIT' ? patchHtml({ nama: katNama(g.idKategori), idKategori: g.idKategori }, 'patch-s') : `<span class="tile-ic">${ic(JENIS_PL[g.jenis].ic)}</span>`;
+  const sub = g => g.jenis === 'UNIT' ? `${esc(katNama(g.idKategori))}, ${esc(g.peringkat)}` : esc(JENIS_PL[g.jenis].nama) + (g.jenis === 'KHIDMAT' ? ': ' + esc(g.perkara) : '');
+  main(`${bannerHtml('', 'info', 'Semua guru boleh merekod pelibatan murid, walaupun bukan guru unit murid tersebut. Rekod terus digunakan untuk mengisi templat <b>PAJSK MOEIS</b>: tab Kelab, Beruniform, Sukan dan <b>Ekstra</b> (Anugerah Khas, Khidmat Masyarakat, NILAM, Perkhidmatan).')}
     <div class="sec"><h2>Rekod saya</h2><button class="btn btn-primary btn-sm" data-act="plBaru">${ic('plus', 'i-s')}Rekod baharu</button></div>
-    ${grup.length ? `<div class="list">${grup.map((g, i) => `<button class="row row-wrap" data-act="plGrup" data-i="${i}">${patchHtml({ nama: katNama(g.idKategori), idKategori: g.idKategori }, 'patch-s')}<div class="row-main"><div class="row-title">${esc(g.aktiviti)}</div><div class="row-sub">${esc(katNama(g.idKategori))}, ${esc(g.peringkat)}${g.tarikh ? ', ' + esc(fmtDate(g.tarikh)) : ''}</div></div><span class="chip">${g.list.length} murid</span>${ic('chev', 'i-s')}</button>`).join('')}</div>`
-      : emptyHtml('award', 'Belum ada rekod sesi ini', 'Tekan Rekod baharu apabila murid menyertai pertandingan, program, karnival, kursus atau membantu menjayakan aktiviti sekolah.', `<button class="btn btn-primary" data-act="plBaru">${ic('plus', 'i-s')}Rekod baharu</button>`)}`);
+    ${grup.length ? `<div class="list">${grup.map((g, i) => `<button class="row row-wrap" data-act="plGrup" data-i="${i}">${ikon(g)}<div class="row-main"><div class="row-title">${esc(g.jenis === 'UNIT' ? g.aktiviti : ekstraTajuk(g))}</div><div class="row-sub">${sub(g)}${g.tarikh ? ', ' + esc(fmtDate(g.tarikh)) : ''}</div></div><span class="chip">${g.list.length} murid</span>${ic('chev', 'i-s')}</button>`).join('')}</div>`
+      : emptyHtml('award', 'Belum ada rekod sesi ini', 'Tekan Rekod baharu dan pilih jenis pelibatan.', `<button class="btn btn-primary" data-act="plBaru">${ic('plus', 'i-s')}Rekod baharu</button>`)}`);
   S.acts = {
     retry: () => route(),
-    plBaru: () => openPelibatanBaru(r),
+    plBaru: () => pilihJenisPelibatan(r),
     plGrup(el) { const g = grup[Number(el.dataset.i)]; if (g) openPelibatanGrup(r, g); }
   };
+}
+
+function pilihJenisPelibatan(r) {
+  const sh = openSheet({
+    title: 'Jenis pelibatan',
+    body: `<div class="list">${Object.keys(JENIS_PL).map(k => `<button class="row row-wrap" data-act="pj" data-j="${k}"><span class="tile-ic">${ic(JENIS_PL[k].ic)}</span><div class="row-main"><div class="row-title">${esc(JENIS_PL[k].nama)}</div><div class="row-sub">${esc(JENIS_PL[k].sub)}</div></div>${ic('chev', 'i-s')}</button>`).join('')}</div>`,
+    acts: { pj(el) { sh.close(); if (el.dataset.j === 'UNIT') openPelibatanBaru(r); else openEkstraBaru(r, el.dataset.j); } }
+  });
 }
 
 async function selepasPelibatan() {
@@ -4321,16 +4357,65 @@ async function selepasPelibatan() {
   route(true);
 }
 
-function openPelibatanBaru(r, asal) {
-  if (!r.kategori.length) return toast('Tiada kategori Kelab, Beruniform atau Sukan. Hubungi Super Admin.', 'warn');
+/**
+ * Pemilih murid dikongsi: carian, tapisan kelas, senarai dipilih dengan medan bagi setiap murid.
+ * o.boleh(m) -> teks sebab jika tidak boleh dipilih; o.sub(m) -> teks kecil; o.baru() -> nilai lalai murid baharu;
+ * o.medan(id, v) -> HTML medan bagi setiap murid (atribut data-f).
+ */
+function pasangPemilih(sh, r, o) {
   const murid = r.murid.map(([id, nama, kelas, unit]) => ({ id, nama, kelas, unit }));
   const byId = {}; murid.forEach(m => { byId[m.id] = m; });
   const kelasList = Array.from(new Set(murid.map(m => m.kelas).filter(Boolean))).sort(numSort);
-  const st = { kat: (asal && asal.idKategori) || r.kategori[0].id, q: '', kelas: '', pilih: new Map() };
-  const unitNama = (m, k) => (m.unit[k] ? r.unit[m.unit[k]] || 'Unit' : '');
+  const st = { q: '', kelas: '', pilih: new Map() };
+  sh.$('#pmBox').innerHTML = `<div class="field"><span class="label">Pilih murid <span class="muted small" id="plN">0 dipilih</span></span>
+      <div class="pick-box"><div class="pick-head"><div class="search">${ic('search', 'i-s')}<input class="input" id="plQ" placeholder="Cari nama murid" autocomplete="off"></div>
+      <select class="input" id="plKelas" style="max-width:130px"><option value="">Semua kelas</option>${kelasList.map(k => `<option>${esc(k)}</option>`).join('')}</select></div>
+      <div class="pick-list" id="plL"></div></div></div><div id="plPilih"></div>`;
+  const api2 = {
+    st, byId,
+    drawList() {
+      const q = st.q.trim().toLowerCase();
+      const L = murid.filter(m => (!st.kelas || m.kelas === st.kelas) && (!q || m.nama.toLowerCase().includes(q)));
+      sh.$('#plL').innerHTML = L.slice(0, 400).map(m => {
+        const tak = o.boleh ? o.boleh(m) : '';
+        return `<label class="row" ${tak ? 'style="opacity:.55;cursor:not-allowed"' : ''}><input type="checkbox" value="${esc(m.id)}" ${st.pilih.has(m.id) ? 'checked' : ''} ${tak ? 'disabled' : ''}><div class="row-main"><div class="row-title">${esc(m.nama)}</div><div class="row-sub">${esc(m.kelas)}${tak ? ', ' + esc(tak) : (o.sub ? ', ' + esc(o.sub(m)) : '')}</div></div></label>`;
+      }).join('') || `<div class="row small muted">Tiada murid sepadan.</div>`;
+      sh.$('#plN').textContent = st.pilih.size + ' dipilih';
+    },
+    drawPilih() {
+      sh.$('#plN').textContent = st.pilih.size + ' dipilih';
+      const btn = sh.$('#plSave'); if (btn) btn.textContent = st.pilih.size ? `Simpan (${st.pilih.size} murid)` : 'Simpan';
+      if (!st.pilih.size) { sh.$('#plPilih').innerHTML = ''; return; }
+      sh.$('#plPilih').innerHTML = `<div class="label" style="margin:4px 2px 8px">Murid dipilih (${st.pilih.size})</div><div class="list">${Array.from(st.pilih.entries()).map(([id, v]) => {
+        const m = byId[id], medan = o.medan ? o.medan(id, v) : '';
+        return `<div class="row row-wrap" data-pm="${esc(id)}" style="flex-wrap:wrap;align-items:flex-start;row-gap:8px"><div class="row-main" style="flex:1 1 0;min-width:0"><div class="row-title">${esc(m.nama)}</div><div class="row-sub">${esc(m.kelas)}${o.sub ? ', ' + esc(o.sub(m)) : ''}</div></div>
+          <button type="button" class="icon-btn" data-act="plBuang" data-id="${esc(id)}" aria-label="Buang ${esc(m.nama)}">${ic('x', 'i-s')}</button>
+          ${medan ? `<div class="hstack" style="gap:6px;flex-wrap:wrap;flex-basis:100%">${medan}</div>` : ''}</div>`;
+      }).join('')}</div>`;
+    },
+    data() { return Array.from(st.pilih.entries()).map(([idMurid, v]) => Object.assign({ idMurid }, v)); }
+  };
+  sh.acts.plBuang = el => { st.pilih.delete(el.dataset.id); api2.drawList(); api2.drawPilih(); };
+  sh.$('#plL').onchange = e => {
+    const i = e.target;
+    if (!i.matches('input[type=checkbox]')) return;
+    if (i.checked) st.pilih.set(i.value, o.baru ? o.baru() : {}); else st.pilih.delete(i.value);
+    api2.drawPilih();
+  };
+  const ubah = e => { const el = e.target, row = el.closest('[data-pm]'); if (!row || !el.dataset.f) return; const v = st.pilih.get(row.dataset.pm); if (v) v[el.dataset.f] = el.value.trim(); };
+  sh.$('#plPilih').oninput = ubah; sh.$('#plPilih').onchange = ubah;
+  sh.$('#plQ').oninput = debounce(e => { st.q = e.target.value; api2.drawList(); }, 200);
+  sh.$('#plKelas').onchange = e => { st.kelas = e.target.value; api2.drawList(); };
+  api2.drawList(); api2.drawPilih();
+  return api2;
+}
+
+function openPelibatanBaru(r, asal) {
+  if (!r.kategori.length) return toast('Tiada kategori Kelab, Beruniform atau Sukan. Hubungi Super Admin.', 'warn');
+  const kat = { id: (asal && asal.idKategori) || r.kategori[0].id };
   const kn = id => (r.kategori.find(k => k.id === id) || {}).nama || '';
   const sh = openSheet({
-    title: asal ? 'Tambah murid' : 'Rekod pelibatan murid', full: true,
+    title: asal ? 'Tambah murid' : 'Aktiviti Kelab, Beruniform atau Sukan', full: true,
     body: `<div class="field"><span class="label">Kategori PAJSK <span class="req">*</span></span><div class="pills" id="plKat" style="flex-wrap:wrap"></div></div>
       <div class="field"><label for="plA">Aktiviti, program atau pertandingan <span class="req">*</span></label><input class="input" id="plA" value="${esc(asal ? asal.aktiviti : '')}" placeholder="cth. Kejohanan Olahraga MSSD 2026"></div>
       <div class="hstack" style="align-items:flex-start"><div class="field grow"><label for="plP">Peringkat <span class="req">*</span></label><select class="input" id="plP">${PERINGKAT.map(x => `<option ${asal && asal.peringkat === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
@@ -4338,27 +4423,21 @@ function openPelibatanBaru(r, asal) {
       <div class="hstack" style="align-items:flex-start;flex-wrap:wrap"><div class="field grow"><label for="plH">Pencapaian (lalai)</label><input class="input" id="plH" list="plHL" value="Penyertaan"><datalist id="plHL">${HASIL.map(x => `<option value="${x}">`).join('')}</datalist></div>
       <div class="field grow"><label for="plK">Khidmat sumbangan (lalai)</label><select class="input" id="plK">${khidmatOpts('')}</select></div></div>
       <p class="hint" style="margin:-6px 2px 12px">Nilai lalai diberi kepada murid yang baru dipilih. Ubah bagi setiap murid dalam senarai <b>Murid dipilih</b> jika keputusan berbeza (contoh seorang Johan, yang lain Penyertaan).</p>
-      <div class="field"><span class="label">Pilih murid <span class="muted small" id="plN">0 dipilih</span></span>
-        <div class="pick-box"><div class="pick-head"><div class="search">${ic('search', 'i-s')}<input class="input" id="plQ" placeholder="Cari nama murid" autocomplete="off"></div>
-        <select class="input" id="plKelas" style="max-width:130px"><option value="">Semua kelas</option>${kelasList.map(k => `<option>${esc(k)}</option>`).join('')}</select></div>
-        <div class="pick-list" id="plL"></div></div></div>
-      <div id="plPilih"></div>`,
+      <div id="pmBox"></div>`,
     foot: `<button class="btn" data-act="sheetClose">Batal</button><button class="btn btn-primary" data-act="save" id="plSave">Simpan</button>`,
     acts: {
       plKat(el) {
-        st.kat = el.dataset.id;
+        kat.id = el.dataset.id;
         let buang = 0;
-        Array.from(st.pilih.keys()).forEach(id => { if (!byId[id].unit[st.kat]) { st.pilih.delete(id); buang++; } });
-        if (buang) toast(buang + ' murid dibuang kerana tiada unit ' + kn(st.kat) + '.', 'warn');
-        drawKat(); drawList(); drawPilih();
+        Array.from(pm.st.pilih.keys()).forEach(id => { if (!pm.byId[id].unit[kat.id]) { pm.st.pilih.delete(id); buang++; } });
+        if (buang) toast(buang + ' murid dibuang kerana tiada unit ' + kn(kat.id) + '.', 'warn');
+        drawKat(); pm.drawList(); pm.drawPilih();
       },
-      plBuang(el) { st.pilih.delete(el.dataset.id); drawList(); drawPilih(); },
       async save(el) {
         const aktiviti = sh.$('#plA').value.trim();
         if (aktiviti.length < 5) { sh.$('#plA').focus(); return toast('Isi nama aktiviti (sekurang-kurangnya 5 aksara).', 'warn'); }
-        if (!st.pilih.size) return toast('Pilih sekurang-kurangnya seorang murid.', 'warn');
-        const data = { idKategori: st.kat, aktiviti, peringkat: sh.$('#plP').value, tarikh: sh.$('#plT').value,
-          murid: Array.from(st.pilih.entries()).map(([idMurid, v]) => ({ idMurid, pencapaian: v.pencapaian, khidmat: v.khidmat })) };
+        if (!pm.st.pilih.size) return toast('Pilih sekurang-kurangnya seorang murid.', 'warn');
+        const data = { idKategori: kat.id, aktiviti, peringkat: sh.$('#plP').value, tarikh: sh.$('#plT').value, murid: pm.data() };
         await withBusy(el, async () => {
           try {
             const x = await api('simpanPelibatan', data);
@@ -4370,60 +4449,86 @@ function openPelibatanBaru(r, asal) {
       }
     }
   });
-  const drawKat = () => {
-    sh.$('#plKat').innerHTML = r.kategori.map(k => `<button type="button" class="${k.id === st.kat ? 'on' : ''}" data-act="plKat" data-id="${esc(k.id)}">${esc(k.nama)}</button>`).join('');
-  };
-  const drawList = () => {
-    const q = st.q.trim().toLowerCase();
-    const L = murid.filter(m => (!st.kelas || m.kelas === st.kelas) && (!q || m.nama.toLowerCase().includes(q)));
-    sh.$('#plL').innerHTML = L.slice(0, 400).map(m => {
-      const u = unitNama(m, st.kat);
-      return `<label class="row" ${u ? '' : 'style="opacity:.55;cursor:not-allowed"'}><input type="checkbox" value="${esc(m.id)}" ${st.pilih.has(m.id) ? 'checked' : ''} ${u ? '' : 'disabled'}><div class="row-main"><div class="row-title">${esc(m.nama)}</div><div class="row-sub">${esc(m.kelas)}, ${u ? esc(u) : 'tiada unit ' + esc(kn(st.kat))}</div></div></label>`;
-    }).join('') || `<div class="row small muted">Tiada murid sepadan.</div>`;
-    sh.$('#plN').textContent = st.pilih.size + ' dipilih';
-  };
-  const drawPilih = () => {
-    sh.$('#plN').textContent = st.pilih.size + ' dipilih';
-    sh.$('#plSave').textContent = st.pilih.size ? `Simpan (${st.pilih.size} murid)` : 'Simpan';
-    if (!st.pilih.size) { sh.$('#plPilih').innerHTML = ''; return; }
-    sh.$('#plPilih').innerHTML = `<div class="label" style="margin:4px 2px 8px">Murid dipilih (${st.pilih.size})</div><div class="list">${Array.from(st.pilih.entries()).map(([id, v]) => {
-      const m = byId[id];
-      return `<div class="row row-wrap" data-pm="${esc(id)}" style="flex-wrap:wrap;align-items:flex-start;row-gap:8px"><div class="row-main" style="flex:1 1 0;min-width:0"><div class="row-title">${esc(m.nama)}</div><div class="row-sub">${esc(m.kelas)}, ${esc(unitNama(m, st.kat))}</div></div>
-        <button type="button" class="icon-btn" data-act="plBuang" data-id="${esc(id)}" aria-label="Buang ${esc(m.nama)}">${ic('x', 'i-s')}</button>
-        <div class="hstack" style="gap:6px;flex-wrap:wrap;flex-basis:100%"><input class="input grow" style="min-width:130px" data-f="pencapaian" list="plHL" value="${esc(v.pencapaian)}" aria-label="Pencapaian ${esc(m.nama)}">
-        <select class="input grow" style="min-width:160px" data-f="khidmat" aria-label="Khidmat sumbangan ${esc(m.nama)}">${khidmatOpts(v.khidmat)}</select></div></div>`;
-    }).join('')}</div>`;
-  };
-  sh.$('#plL').onchange = e => {
-    const i = e.target;
-    if (!i.matches('input[type=checkbox]')) return;
-    if (i.checked) st.pilih.set(i.value, { pencapaian: sh.$('#plH').value.trim(), khidmat: sh.$('#plK').value });
-    else st.pilih.delete(i.value);
-    drawPilih();
-  };
-  const ubahPilih = e => {
-    const el = e.target, row = el.closest('[data-pm]');
-    if (!row || !el.dataset.f) return;
-    const v = st.pilih.get(row.dataset.pm);
-    if (v) v[el.dataset.f] = el.value.trim();
-  };
-  sh.$('#plPilih').oninput = ubahPilih;
-  sh.$('#plPilih').onchange = ubahPilih;
-  sh.$('#plQ').oninput = debounce(e => { st.q = e.target.value; drawList(); }, 200);
-  sh.$('#plKelas').onchange = e => { st.kelas = e.target.value; drawList(); };
-  drawKat(); drawList(); drawPilih();
+  const drawKat = () => { sh.$('#plKat').innerHTML = r.kategori.map(k => `<button type="button" class="${k.id === kat.id ? 'on' : ''}" data-act="plKat" data-id="${esc(k.id)}">${esc(k.nama)}</button>`).join(''); };
+  const unitNama = m => (m.unit[kat.id] ? r.unit[m.unit[kat.id]] || 'Unit' : '');
+  const pm = pasangPemilih(sh, r, {
+    boleh: m => (m.unit[kat.id] ? '' : 'tiada unit ' + kn(kat.id)),
+    sub: unitNama,
+    baru: () => ({ pencapaian: sh.$('#plH').value.trim(), khidmat: sh.$('#plK').value }),
+    medan: (id, v) => `<input class="input grow" style="min-width:130px" data-f="pencapaian" list="plHL" value="${esc(v.pencapaian)}" aria-label="Pencapaian"><select class="input grow" style="min-width:160px" data-f="khidmat" aria-label="Khidmat sumbangan">${khidmatOpts(v.khidmat)}</select>`
+  });
+  drawKat();
+}
+
+/** Borang tab Ekstra: ANUGERAH, KHIDMAT, NILAM, PERKHIDMATAN */
+function openEkstraBaru(r, jenis, asal) {
+  const L = r.senarai;
+  const J = JENIS_PL[jenis];
+  let atas = '', baru = () => ({}), medan = null, hint = '';
+  if (jenis === 'ANUGERAH') {
+    atas = `<div class="field"><label for="exP">Anugerah <span class="req">*</span></label><select class="input" id="exP">${optsDari(L.anugerah, asal && asal.perkara, labelUp, 'Pilih anugerah')}</select></div>
+      <div class="field"><label for="exN">Tahap (lalai)</label><select class="input" id="exN">${optsDari(L.tahapAnugerah, 'PENERIMA', labelUp)}</select></div>`;
+    baru = () => ({ nilai: sh.$('#exN').value });
+    medan = (id, v) => `<select class="input grow" data-f="nilai" aria-label="Tahap">${optsDari(L.tahapAnugerah, v.nilai, labelUp)}</select>`;
+    hint = 'SPPB menerima satu anugerah bagi setiap murid. Jika murid ada lebih daripada satu, anugerah yang lebih tinggi dalam senarai SPPB digunakan.';
+  } else if (jenis === 'KHIDMAT') {
+    atas = `<div class="field"><label for="exP">Kategori khidmat masyarakat <span class="req">*</span></label><select class="input" id="exP">${optsDari(L.khidmatMasyarakat, asal && asal.perkara, x => x, 'Pilih kategori')}</select></div>`;
+    hint = 'Setiap rekod dikira satu kali penyertaan. Templat MOEIS mengisi bilangan (maksimum 5) bagi setiap kategori.';
+  } else if (jenis === 'NILAM') {
+    atas = `<div class="field"><label for="exN">Tahap NILAM (lalai)</label><select class="input" id="exN">${optsDari(L.nilam, '', labelUp)}</select></div>`;
+    baru = () => ({ nilai: sh.$('#exN').value });
+    medan = (id, v) => `<select class="input grow" data-f="nilai" aria-label="Tahap NILAM">${optsDari(L.nilam, v.nilai, labelUp)}</select>`;
+    hint = 'Jika murid ada lebih daripada satu rekod, tahap bintang tertinggi digunakan.';
+  } else {
+    atas = `<div class="field"><label for="exN">Jawatan (lalai) <span class="req">*</span></label><select class="input" id="exN">${optsDari(L.perkhidmatan, '', labelKhid)}</select></div>`;
+    baru = () => ({ nilai: sh.$('#exN').value });
+    medan = (id, v) => `<select class="input grow" data-f="nilai" aria-label="Jawatan">${optsDari(L.perkhidmatan, v.nilai, labelKhid)}</select>`;
+    hint = 'Jika murid memegang lebih daripada satu jawatan, jawatan dengan mata tertinggi digunakan.';
+  }
+  const perluAkt = jenis === 'KHIDMAT';
+  const aktDef = asal ? asal.aktiviti : (jenis === 'NILAM' ? 'Program NILAM ' + ((S.boot && S.boot.sesi) || '') : '');
+  const sh = openSheet({
+    title: (asal ? 'Tambah murid: ' : '') + J.nama, full: true,
+    body: `${atas}
+      <div class="hstack" style="align-items:flex-start;flex-wrap:wrap"><div class="field grow"><label for="exA">${perluAkt ? 'Nama aktiviti <span class="req">*</span>' : 'Catatan / nama program'}</label><input class="input" id="exA" value="${esc(aktDef)}" placeholder="${perluAkt ? 'cth. Gotong-royong Surau Kg. Sg. Tua' : 'Pilihan'}"></div>
+      <div class="field grow"><label for="exT">Tarikh</label><input class="input" id="exT" type="date" max="${esc(today())}" value="${esc(asal ? asal.tarikh : today())}"></div></div>
+      <p class="hint" style="margin:-6px 2px 12px">${esc(hint)}${medan ? ' Nilai lalai diberi kepada murid yang baru dipilih dan boleh diubah bagi setiap murid.' : ''}</p>
+      <div id="pmBox"></div>`,
+    foot: `<button class="btn" data-act="sheetClose">Batal</button><button class="btn btn-primary" data-act="save" id="plSave">Simpan</button>`,
+    acts: {
+      async save(el) {
+        const perkara = sh.$('#exP') ? sh.$('#exP').value : '';
+        const aktiviti = sh.$('#exA').value.trim();
+        if (sh.$('#exP') && !perkara) { sh.$('#exP').focus(); return toast('Pilih ' + (jenis === 'ANUGERAH' ? 'anugerah.' : 'kategori.'), 'warn'); }
+        if (perluAkt && aktiviti.length < 3) { sh.$('#exA').focus(); return toast('Isi nama aktiviti.', 'warn'); }
+        if (!pm.st.pilih.size) return toast('Pilih sekurang-kurangnya seorang murid.', 'warn');
+        const data = { jenis, perkara, nilai: sh.$('#exN') ? sh.$('#exN').value : '', aktiviti, tarikh: sh.$('#exT').value, murid: pm.data() };
+        await withBusy(el, async () => {
+          try {
+            const x = await api('simpanEkstra', data);
+            sh.close();
+            toast(`${J.nama} disimpan untuk ${x.bil} murid.` + (x.sudahAda ? ` ${x.sudahAda} sudah direkod sebelum ini.` : ''), 'ok');
+            selepasPelibatan();
+          } catch (e) { toast(e.message, 'bad'); }
+        });
+      }
+    }
+  });
+  const pm = pasangPemilih(sh, r, { baru: () => baru(), medan });
 }
 
 function openPelibatanGrup(r, g) {
+  const unit = g.jenis === 'UNIT';
+  const katN = unit ? (((r.kategori.find(k => k.id === g.idKategori) || {}).nama) || '') : '';
   const sh = openSheet({
-    title: g.aktiviti,
-    body: `<p class="muted" style="margin-top:0">${esc(((r.kategori.find(k => k.id === g.idKategori) || {}).nama) || '')}, peringkat ${esc(g.peringkat)}${g.tarikh ? ', ' + esc(fmtDate(g.tarikh)) : ''}</p>
-      <div class="list">${g.list.map((x, i) => `<button class="row row-wrap" data-act="plEdit" data-i="${i}"><div class="row-main"><div class="row-title">${esc(x.nama)}</div><div class="row-sub">${esc(x.kelas)}, ${esc(x.unit)}</div>
-        <div class="row-sub" style="white-space:normal">${esc(x.pencapaian || 'Tiada pencapaian')}${x.khidmat ? ' · Khidmat: ' + esc(khidmatLabel(x.khidmat)) : ''}</div></div>${ic('edit', 'i-s')}</button>`).join('')}</div>`,
+    title: unit ? g.aktiviti : ekstraTajuk(g),
+    body: `<p class="muted" style="margin-top:0">${unit ? esc(katN) + ', peringkat ' + esc(g.peringkat) : esc(JENIS_PL[g.jenis].nama)}${g.tarikh ? ', ' + esc(fmtDate(g.tarikh)) : ''}</p>
+      <div class="list">${g.list.map((x, i) => `<button class="row row-wrap" data-act="plEdit" data-i="${i}"><div class="row-main"><div class="row-title">${esc(x.nama)}</div><div class="row-sub">${esc(x.kelas)}${unit ? ', ' + esc(x.unit) : ''}</div>
+        <div class="row-sub" style="white-space:normal">${unit ? esc(x.pencapaian || 'Tiada pencapaian') + (x.khidmat ? ' · Khidmat: ' + esc(khidmatLabel(x.khidmat)) : '') : esc(ekstraNilaiLabel(x))}</div></div>${ic('edit', 'i-s')}</button>`).join('')}</div>`,
     foot: `<button class="btn" data-act="sheetClose">Tutup</button><button class="btn btn-primary" data-act="plTambah">${ic('plus', 'i-s')}Tambah murid</button>`,
     acts: {
-      plEdit(el) { const x = g.list[Number(el.dataset.i)]; if (x) { sh.close(); openPelibatanEdit(x); } },
-      plTambah() { sh.close(); openPelibatanBaru(r, g); }
+      plEdit(el) { const x = g.list[Number(el.dataset.i)]; if (!x) return; sh.close(); if (unit) openPelibatanEdit(x); else openEkstraEdit(r, x); },
+      plTambah() { sh.close(); if (unit) openPelibatanBaru(r, g); else openEkstraBaru(r, g.jenis, g); }
     }
   });
 }
@@ -4450,6 +4555,37 @@ function openPelibatanEdit(x) {
       async del() {
         if (!(await confirmDlg('Padam rekod pelibatan ' + esc(x.nama) + '?', { ok: 'Padam', danger: true }))) return;
         try { await api('deletePencapaian', { id: x.id }); sh.close(); toast('Rekod dipadam.', 'ok'); selepasPelibatan(); }
+        catch (e) { toast(e.message, 'bad'); }
+      }
+    }
+  });
+}
+
+function openEkstraEdit(r, x) {
+  const L = r.senarai;
+  let f = '';
+  if (x.jenis === 'ANUGERAH') f = `<div class="field"><label for="eeP">Anugerah</label><select class="input" id="eeP">${optsDari(L.anugerah, x.perkara, labelUp)}</select></div><div class="field"><label for="eeN">Tahap</label><select class="input" id="eeN">${optsDari(L.tahapAnugerah, x.nilai, labelUp)}</select></div>`;
+  else if (x.jenis === 'KHIDMAT') f = `<div class="field"><label for="eeP">Kategori</label><select class="input" id="eeP">${optsDari(L.khidmatMasyarakat, x.perkara)}</select></div>`;
+  else if (x.jenis === 'NILAM') f = `<div class="field"><label for="eeN">Tahap NILAM</label><select class="input" id="eeN">${optsDari(L.nilam, x.nilai, labelUp)}</select></div>`;
+  else f = `<div class="field"><label for="eeP">Jawatan</label><select class="input" id="eeP">${optsDari(L.perkhidmatan, x.perkara, labelKhid)}</select></div>`;
+  const sh = openSheet({
+    title: x.nama,
+    body: `<p class="muted" style="margin-top:0">${esc(x.kelas)}, ${esc(JENIS_PL[x.jenis].nama)}</p>${f}
+      <div class="field"><label for="eeA">${x.jenis === 'KHIDMAT' ? 'Nama aktiviti' : 'Catatan / nama program'}</label><input class="input" id="eeA" value="${esc(x.aktiviti)}"></div>
+      <div class="field"><label for="eeT">Tarikh</label><input class="input" id="eeT" type="date" max="${esc(today())}" value="${esc(x.tarikh)}"></div>`,
+    foot: `<button class="btn btn-danger" data-act="del">${ic('trash', 'i-s')}Padam</button><button class="btn btn-primary" data-act="save">Simpan</button>`,
+    acts: {
+      async save(el) {
+        const v = s2 => (sh.$(s2) ? sh.$(s2).value : '');
+        const data = { id: x.id, perkara: v('#eeP'), nilai: v('#eeN'), aktiviti: v('#eeA').trim(), tarikh: v('#eeT') };
+        await withBusy(el, async () => {
+          try { await api('simpanEkstra', data); sh.close(); toast('Rekod dikemas kini.', 'ok'); selepasPelibatan(); }
+          catch (e) { toast(e.message, 'bad'); }
+        });
+      },
+      async del() {
+        if (!(await confirmDlg('Padam rekod ' + esc(JENIS_PL[x.jenis].nama) + ' bagi ' + esc(x.nama) + '?', { ok: 'Padam', danger: true }))) return;
+        try { await api('padamEkstra', { id: x.id }); sh.close(); toast('Rekod dipadam.', 'ok'); selepasPelibatan(); }
         catch (e) { toast(e.message, 'bad'); }
       }
     }

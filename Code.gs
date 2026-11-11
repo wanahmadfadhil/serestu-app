@@ -44,6 +44,7 @@ const SCHEMA = {
   Format_Laporan: ['Versi', 'Tarikh_Cipta', 'Medan_JSON', 'Aktif'],
   Pencapaian: ['ID', 'Tahun', 'ID_Murid', 'ID_Unit', 'Nama_Aktiviti', 'Peringkat', 'Pencapaian', 'Tarikh', 'ID_Fail_Bukti', 'Direkod_Oleh', 'Khidmat'],
   Tetapan: ['Kunci', 'Nilai'],
+  Ekstra_PAJSK: ['ID', 'Tahun', 'ID_Murid', 'Jenis', 'Perkara', 'Nilai', 'Aktiviti', 'Tarikh', 'Direkod_Oleh', 'Tarikh_Rekod'],
   Pengumuman: ['ID', 'Tajuk', 'Isi', 'Tarikh_Mula', 'Tarikh_Tamat', 'Status', 'Dicipta_Oleh', 'Tarikh_Cipta'],
   Log: ['Masa', 'ID_Guru', 'Tindakan', 'Sheet', 'ID_Rekod', 'Nilai_Lama', 'Nilai_Baharu']
 };
@@ -72,8 +73,16 @@ const SPPB = {
   khidmat: ["MURID YANG DIDAFTARKAN SEBAGAI ATLET ATAU PESERTA PROGRAM/ PERTANDINGAN/ KARNIVAL/ KURSUS", "MELIBATKAN KEMAHIRAN KHUSUS - BERKAITAN ASPEK TEKNIKAL (PENGADIL, JURULATIH PASUKAN, DAN LAIN-LAIN YANG BERKAITAN ASPEK TEKNIKAL)", "PELIBATAN MURID YANG TERLIBAT DALAM AKTIVITI SEPERTI PERSEMBAHAN SELINGAN", "MEMBANTU DARI SEGI MENJAYAKAN AKTIVITI KELAB PERSATUAN SUKAN SEKOLAH SEPERTI MENGAMBIL BAHAGIAN DALAM PERBARISAN ATAU PERSEMBAHAN, KUMPULAN SORAK/PENYOKONG, DAN YANG BERKAITAN"],
   tahap: ["JOHAN", "NAIB JOHAN", "KETIGA", "KEEMPAT", "KELIMA"],
   peringkat: ["Antarabangsa", "Kebangsaan", "Negeri", "Bahagian (Sabah/Sarawak)", "Zon/Daerah", "Sekolah"],
-  peringkatCapai: ["Kebangsaan", "Negeri", "Bahagian (Sabah/Sarawak)", "Zon/Daerah", "Sekolah"]
+  peringkatCapai: ["Kebangsaan", "Negeri", "Bahagian (Sabah/Sarawak)", "Zon/Daerah", "Sekolah"],
+  // Tab Ekstra (helaian Senarai lajur O, P, Q, R dalam TEMPLATE_PAJSK_MOEIS.xlsx)
+  anugerah: ["ANUGERAH REMAJA PERDANA", "PROGRAM KEPIMPINAN GENERASI MADANI - TIER 3", "PROGRAM KEPIMPINAN GENERASI MADANI - TIER 2", "ANUGERAH PENGAKAP RAJA / RAMBU PENGAKAP KANAK-KANAK", "ANUGERAH PANDU PUTERI RAJA / PANDU PUTERI TUNAS KETUA PESURUHJAYA", "ANUGERAH PUTERI AZ-ZAHRA / PUTERI BONGSU - PPIM", "ANUGERAH GRAND PRIOR / PERISAI PERKHIDMATAN KHAS 1000 JAM EMAS - SJAM", "ANUGERAH KHAS KOKURIKULUM DAN SUKAN - KEBANGSAAN", "ANUGERAH KHAS KOKURIKULUM DAN SUKAN - NEGERI", "ANUGERAH KHAS KOKURIKULUM DAN SUKAN - ZON/DAERAH/BAHAGIAN", "ANUGERAH KHAS KOKURIKULUM DAN SUKAN - SEKOLAH", "ANUGERAH-ANUGERAH LAIN/PENGHARGAAN KHAS SETARA – KEBANGSAAN", "ANUGERAH-ANUGERAH LAIN/PENGHARGAAN KHAS SETARA – NEGERI", "ANUGERAH-ANUGERAH LAIN/PENGHARGAAN KHAS SETARA - ZON/DAERAH/BAHAGIAN"],
+  tahapAnugerah: ["PENERIMA", "EMAS", "PERAK", "GANGSA"],
+  perkhidmatan: ["KETUA MURID/PENGERUSI|10", "TIMBALAN/PENOLONG KETUA MURID|8", "PENGAWAS/PENGAWAS PUSAT SUMBER/KETUA ASRAMA/KETUA PRS/KETUA BADAR/KUARTERMASTER/PENGERUSI BADAN PERKHIDMATAN SEKOLAH|7", "PENOLONG KETUA ASRAMA/PENOLONG KETUA BADAR/AHLI LEMBAGA PENGARAH KOPERASI SEKOLAH|6", "AJK UTAMA BADAN-BADAN PERKHIDMATAN ATAU PENGURUSAN/BENDAHARI/SETIAUSAHA/KETUA BIRO-ASRAMA/PRS/PENERIMA SIJIL DAN LENCANA SLAD/PROSTAR/PENGAWAS KOPERASI/KETUA KELAS/KETUA TINGKATAN|5", "AJK KECIL BIRO/KETUA BILIK/KETUA DORM/AJK BADAR/PENERIMA SIJIL SLAD/PENOLONG KETUA KELAS/PENOLONG KETUA BILIK|3", "PENGAWAS PUSAT SUMBER (TINGKATAN 6)|6"],
+  nilam: ["5 BINTANG", "4 BINTANG", "3 BINTANG", "2 BINTANG", "1 BINTANG"],
+  // Lajur F hingga L tab Ekstra: bilangan penyertaan (1 hingga 5) bagi setiap kategori
+  khidmatMasyarakat: ["Kejiranan/Komuniti", "Alam Sekitar", "Bencana Alam", "Kerohanian", "Khidmat Jabatan/Agensi", "Kebudayaan/Kesenian/Integrasi", "Insaniah"]
 };
+const JENIS_EKSTRA = ['ANUGERAH', 'KHIDMAT', 'NILAM', 'PERKHIDMATAN'];
 const PAJSK_LALAI = {
   PAJSK_KOMITMEN: JSON.stringify(['MENEPATI WAKTU', 'MENUNJUKKAN MINAT', 'MENUNJUKKAN KESUNGGUHAN', 'MEMBERI KERJASAMA']),
   PAJSK_KHIDMAT: '',
@@ -150,6 +159,8 @@ const ROUTES = {
   deletePencapaian: { fn: a_deletePencapaian, w: true },
   pelibatanBorang: { fn: a_pelibatanBorang },
   simpanPelibatan: { fn: a_simpanPelibatan, w: true },
+  simpanEkstra: { fn: a_simpanEkstra, w: true },
+  padamEkstra: { fn: a_padamEkstra, w: true },
   muridPicker: { fn: a_muridPicker },
   enrol: { fn: a_enrol, w: true },
   unenrol: { fn: a_unenrol, w: true },
@@ -1509,9 +1520,14 @@ function a_pelibatanBorang(d, ctx) {
     return { id: p.ID, idMurid: p.ID_Murid, nama: m.Nama_Murid || '(rekod murid tiada)', kelas: m.Kelas || '', idUnit: p.ID_Unit, unit: unit[p.ID_Unit] || '',
       idKategori: katUnit[p.ID_Unit] || '', aktiviti: p.Nama_Aktiviti, peringkat: p.Peringkat, pencapaian: p.Pencapaian, tarikh: p.Tarikh, khidmat: p.Khidmat || '' };
   }).sort((a, b) => String(b.tarikh).localeCompare(String(a.tarikh)) || a.aktiviti.localeCompare(b.aktiviti) || a.nama.localeCompare(b.nama));
+  const ekstra = rows_('Ekstra_PAJSK').filter(x => x.Tahun === sesi && x.Direkod_Oleh === ctx.id).map(x => {
+    const m = semua[x.ID_Murid] || {};
+    return { id: x.ID, idMurid: x.ID_Murid, nama: m.Nama_Murid || '(rekod murid tiada)', kelas: m.Kelas || '', jenis: x.Jenis, perkara: x.Perkara, nilai: x.Nilai, aktiviti: x.Aktiviti, tarikh: x.Tarikh };
+  }).sort((a, b) => String(b.tarikh).localeCompare(String(a.tarikh)) || a.nama.localeCompare(b.nama));
   return {
     kategori: kats.map(k => ({ id: k.ID_Kategori, nama: k.Nama_Kategori, tab: tabKategori_(k) })),
-    unit: unit, murid: murid, rekod: rekod, khidmat: SPPB.khidmat
+    unit: unit, murid: murid, rekod: rekod, khidmat: SPPB.khidmat, ekstra: ekstra,
+    senarai: { anugerah: SPPB.anugerah, tahapAnugerah: SPPB.tahapAnugerah, perkhidmatan: SPPB.perkhidmatan, nilam: SPPB.nilam, khidmatMasyarakat: SPPB.khidmatMasyarakat }
   };
 }
 
@@ -1566,6 +1582,100 @@ function a_simpanPelibatan(d, ctx) {
   insertMany_('Pencapaian', add);
   log_(ctx.id, 'Rekod pelibatan', 'Pencapaian', '', '', aktiviti + ' (' + d.peringkat + '): ' + add.length + ' murid');
   return { bil: add.length, tanpaUnit: tanpaUnit, sudahAda: sudahAda };
+}
+
+/* ---------- Tab Ekstra PAJSK: Anugerah Khas, Khidmat Masyarakat, NILAM, Perkhidmatan ---------- */
+/** Sahkan nilai bagi satu rekod Ekstra. Pulangkan { Perkara, Nilai } atau baling ralat. */
+function ekstraNilai_(jenis, perkara, nilai) {
+  perkara = String(perkara || ''); nilai = String(nilai || '');
+  if (jenis === 'ANUGERAH') {
+    if (SPPB.anugerah.indexOf(perkara) < 0) throw fail_('Pilih jenis anugerah.');
+    if (SPPB.tahapAnugerah.indexOf(nilai) < 0) throw fail_('Pilih tahap anugerah.');
+    return { Perkara: perkara, Nilai: nilai };
+  }
+  if (jenis === 'KHIDMAT') {
+    if (SPPB.khidmatMasyarakat.indexOf(perkara) < 0) throw fail_('Pilih kategori khidmat masyarakat.');
+    return { Perkara: perkara, Nilai: '' };
+  }
+  if (jenis === 'NILAM') {
+    if (SPPB.nilam.indexOf(nilai) < 0) throw fail_('Pilih tahap NILAM.');
+    return { Perkara: '', Nilai: nilai };
+  }
+  if (jenis === 'PERKHIDMATAN') {
+    if (SPPB.perkhidmatan.indexOf(perkara) < 0) throw fail_('Pilih jawatan perkhidmatan.');
+    return { Perkara: perkara, Nilai: '' };
+  }
+  throw fail_('Jenis rekod tidak sah.');
+}
+
+function a_simpanEkstra(d, ctx) {
+  ensureSheet_(ss_(), 'Ekstra_PAJSK'); delete T_.Ekstra_PAJSK;
+  const sesi = ctx.sesi;
+  const aktiviti = clean_(d.aktiviti, 150);
+  const tarikh = isYmd_(d.tarikh) ? d.tarikh : '';
+  if (tarikh && tarikh > today_()) throw fail_('Tarikh tidak boleh selepas hari ini.');
+
+  if (d.id) {
+    const x = rows_('Ekstra_PAJSK').find(r => r.ID === d.id && r.Tahun === sesi);
+    if (!x) throw fail_('Rekod tidak dijumpai.');
+    if (x.Direkod_Oleh !== ctx.id && !ctx.super) throw fail_('Hanya guru yang merekod boleh menyunting rekod ini.', 'FORBIDDEN');
+    if (x.Jenis === 'KHIDMAT' && aktiviti.length < 3) throw fail_('Isi nama aktiviti khidmat masyarakat.');
+    update_('Ekstra_PAJSK', x, Object.assign(ekstraNilai_(x.Jenis, d.perkara, d.nilai), { Aktiviti: aktiviti, Tarikh: tarikh }));
+    log_(ctx.id, 'Sunting ekstra PAJSK', 'Ekstra_PAJSK', x.ID, '', x.Jenis);
+    return { bil: 1, sudahAda: 0 };
+  }
+
+  const jenis = String(d.jenis || '');
+  if (JENIS_EKSTRA.indexOf(jenis) < 0) throw fail_('Jenis rekod tidak sah.');
+  if (jenis === 'KHIDMAT' && aktiviti.length < 3) throw fail_('Isi nama aktiviti khidmat masyarakat.');
+  const list = Array.isArray(d.murid) ? d.murid : [];
+  if (!list.length) throw fail_('Pilih sekurang-kurangnya seorang murid.');
+  if (list.length > 300) throw fail_('Maksimum 300 murid bagi satu rekod.');
+  const murid = mapBy_(rows_('Murid').filter(layak_), 'ID_Murid');
+  const kunci = r => [r.ID_Murid, r.Jenis, r.Perkara, r.Nilai, String(r.Aktiviti).toLowerCase(), r.Tarikh].join('|');
+  const wujud = {};
+  rows_('Ekstra_PAJSK').forEach(r => { if (r.Tahun === sesi) wujud[kunci(r)] = 1; });
+  const add = [], seen = {};
+  let sudahAda = 0;
+  const now = now_();
+  list.forEach(x => {
+    const id = String((x && x.idMurid) || '');
+    if (!id || seen[id] || !murid[id]) return;
+    seen[id] = 1;
+    // Nilai bagi setiap murid: tahap anugerah, bintang NILAM atau jawatan perkhidmatan
+    const v = (x.nilai !== undefined && x.nilai !== '') ? x.nilai : d.nilai;
+    const pn = jenis === 'PERKHIDMATAN' ? ekstraNilai_(jenis, v, '') : ekstraNilai_(jenis, d.perkara, v);
+    const o = Object.assign({ ID: uid_('EX'), Tahun: sesi, ID_Murid: id, Jenis: jenis, Aktiviti: aktiviti, Tarikh: tarikh, Direkod_Oleh: ctx.id, Tarikh_Rekod: now }, pn);
+    if (wujud[kunci(o)]) { sudahAda++; return; }
+    wujud[kunci(o)] = 1;
+    add.push(o);
+  });
+  if (!add.length) throw fail_(sudahAda ? 'Semua murid yang dipilih sudah direkod untuk perkara ini.' : 'Tiada murid sah dipilih.');
+  insertMany_('Ekstra_PAJSK', add);
+  log_(ctx.id, 'Rekod ekstra PAJSK', 'Ekstra_PAJSK', '', '', jenis + ': ' + add.length + ' murid');
+  return { bil: add.length, sudahAda: sudahAda };
+}
+
+function a_padamEkstra(d, ctx) {
+  const x = rows_('Ekstra_PAJSK').find(r => r.ID === d.id);
+  if (!x) throw fail_('Rekod tidak dijumpai.');
+  if (x.Direkod_Oleh !== ctx.id && !ctx.super) throw fail_('Hanya guru yang merekod boleh memadam rekod ini.', 'FORBIDDEN');
+  removeMany_('Ekstra_PAJSK', [x]);
+  log_(ctx.id, 'Padam ekstra PAJSK', 'Ekstra_PAJSK', x.ID, x.Jenis, '');
+  return { ok: true };
+}
+
+/** Baris tab Ekstra bagi seorang murid: satu nilai terbaik bagi setiap lajur (SPPB hanya menerima satu). */
+function barisEkstra_(id, nama, rec) {
+  rec = rec || [];
+  const ang = rec.filter(x => x.Jenis === 'ANUGERAH').sort((a, b) =>
+    (SPPB.anugerah.indexOf(a.Perkara) - SPPB.anugerah.indexOf(b.Perkara)) ||
+    (['EMAS', 'PERAK', 'GANGSA', 'PENERIMA'].indexOf(a.Nilai) - ['EMAS', 'PERAK', 'GANGSA', 'PENERIMA'].indexOf(b.Nilai)))[0];
+  const km = SPPB.khidmatMasyarakat.map(k => { const n = rec.filter(x => x.Jenis === 'KHIDMAT' && x.Perkara === k).length; return n ? Math.min(5, n) : ''; });
+  const nilam = rec.filter(x => x.Jenis === 'NILAM').map(x => x.Nilai).sort((a, b) => SPPB.nilam.indexOf(a) - SPPB.nilam.indexOf(b))[0] || '';
+  const mata = v => Number(String(v).split('|')[1] || 0);
+  const khid = rec.filter(x => x.Jenis === 'PERKHIDMATAN').map(x => x.Perkara).sort((a, b) => mata(b) - mata(a))[0] || '';
+  return [id, nama, 'Ya', ang ? ang.Perkara : '', ang ? ang.Nilai : ''].concat(km, [nilam, khid]);
 }
 
 /* =========================================================================
@@ -2139,6 +2249,8 @@ function a_pajskMoeis(d, ctx) {
   rows_('Pencapaian').forEach(x => { if (x.Tahun === sesi) (capai[x.ID_Unit + '|' + x.ID_Murid] = capai[x.ID_Unit + '|' + x.ID_Murid] || []).push(x); });
   const enrol = {};
   rows_('Enrolmen').forEach(e => { if (e.Tahun === sesi && e.Status === 'Aktif') (enrol[e.ID_Murid] = enrol[e.ID_Murid] || []).push(e); });
+  const ekstra = {};
+  rows_('Ekstra_PAJSK').forEach(x => { if (x.Tahun === sesi) (ekstra[x.ID_Murid] = ekstra[x.ID_Murid] || []).push(x); });
   const murid = rows_('Murid').filter(m => layak_(m) && (!kelas || m.Kelas === kelas))
     .sort((a, b) => String(a.Kelas).localeCompare(String(b.Kelas), 'ms', { numeric: true }) || a.Nama_Murid.localeCompare(b.Nama_Murid));
   const perlu = {};
@@ -2152,7 +2264,7 @@ function a_pajskMoeis(d, ctx) {
   murid.forEach(m => {
     const id = kp[m.ID_APDM] || '';
     if (!id) tanpaKP.push(m.Nama_Murid);
-    out.Ekstra.push([id, m.Nama_Murid, 'Ya']);
+    out.Ekstra.push(barisEkstra_(id, m.Nama_Murid, ekstra[m.ID_Murid]));
     const ada = {};
     (enrol[m.ID_Murid] || []).sort((a, b) => (katSusun[a.ID_Kategori] || 0) - (katSusun[b.ID_Kategori] || 0)).forEach(e => {
       const tab = tabOf[e.ID_Kategori];
