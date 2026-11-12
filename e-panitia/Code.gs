@@ -2,7 +2,7 @@
  * =====================================================================
  *  e-PANITIA — Sistem Pengurusan Panitia Sekolah Rendah
  *  Backend Google Apps Script (Google Sheets + Google Drive)
- *  Versi 1.5.1
+ *  Versi 1.5.2
  * =====================================================================
  *
  *  CARA PASANG
@@ -26,7 +26,7 @@
  * =====================================================================
  */
 
-const APP_VERSION = '1.5.1';
+const APP_VERSION = '1.5.2';
 const KATA_LALUAN_LALAI = '12345678';
 const SESI_HARI = 7;
 const TONG_HARI = 30;
@@ -243,6 +243,13 @@ function doPost(e) {
 /** Dipanggil melalui google.script.run apabila HTML dihos dalam Apps Script */
 function api(q) { return handle_(q); }
 
+/** Ralat kunci (LockService) ditukar kepada mesej yang klien kenali sebagai boleh dicuba semula */
+function mesejRalat_(err) {
+  const m = String((err && err.message) || err);
+  if (/lock|timed out|too many|service invoked too many|try again later/i.test(m)) return 'PELAYAN_SIBUK: Pelayan sedang sibuk. Perubahan akan dicuba semula.';
+  return m;
+}
+
 function json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -253,7 +260,7 @@ function handle_(q) {
   try {
     q = q || {};
     ensureSchema_();
-    const fn = ACTIONS[q.action];
+    const fn = Object.prototype.hasOwnProperty.call(ACTIONS, q.action) ? ACTIONS[q.action] : null;
     if (!fn) throw new Error('Tindakan tidak dikenali: ' + q.action);
     const u = AWAM.indexOf(q.action) >= 0 ? null : auth_(q.token);
     const data = fn(q, u);
@@ -265,7 +272,7 @@ function handle_(q) {
     return { ok: true, data };
   } catch (err) {
     try { selesai_(); } catch (e) { /* */ }
-    return { ok: false, error: String((err && err.message) || err) };
+    return { ok: false, error: mesejRalat_(err) };
   }
 }
 
@@ -393,6 +400,7 @@ function cacheBerubah() {
   const o = {};
   Object.keys(SCHEMA).forEach(n => { o['G_' + n] = uid_(8); });
   cache_().putAll(o, CACHE_TTL);
+  cache_().removeAll(Object.keys(SCHEMA).map(n => 'H_' + n + '_' + APP_VERSION));
   _G = null;
 }
 function kosongkanCache() { cacheBerubah(); Logger.log('✅ Cache dikosongkan.'); }
@@ -524,6 +532,12 @@ function deleteWhere_(name, pred) {
   const t = table_(name, true);
   const sasaran = t.rows.filter(pred).map(r => r._row).sort((a, b) => b - a);
   if (!sasaran.length) return 0;
+  if (sasaran.length > 15) { // banyak baris: tulis semula jadual sekali (deleteRow satu demi satu sangat lambat)
+    const buang = {};
+    sasaran.forEach(r => { buang[r] = 1; });
+    tulisSemula_(name, t.rows.filter(r => !buang[r._row]));
+    return sasaran.length;
+  }
   kotor_(name);
   const sh = sh_(name);
   if (sasaran.length >= sh.getMaxRows() - 1) sh.insertRowsAfter(sh.getMaxRows(), 20);
@@ -692,10 +706,19 @@ function folderSistem_(nama, kongsi) {
  * Fail di dalamnya mewarisi akses, jadi setiap muat naik tidak perlu setSharing (jimat ~1 saat).
  * Folder 09 (kewangan) tidak dikongsi.
  */
+function petaFolder_(p) { try { return p.subFolder ? JSON.parse(p.subFolder) : {}; } catch (e) { return {}; } }
 function folderPanitia_(p, no) {
   no = String(Number(no));
-  let peta = {};
-  try { peta = p.subFolder ? JSON.parse(p.subFolder) : {}; } catch (e) { peta = {}; }
+  let peta = petaFolder_(p);
+  // Laluan pantas tanpa kunci: folder sudah wujud dan sudah dikongsi
+  if (peta[no] && (no === '9' || peta['k' + no])) {
+    try { return DriveApp.getFolderById(peta[no]); } catch (e) { /* folder hilang — cipta semula di bawah */ }
+  }
+  // Perlu ubah peta folder: ambil kunci dan baca rekod terkini supaya muat naik serentak
+  // tidak mencipta folder berganda atau menindih peta folder lain.
+  kunci_();
+  p = rows_('Panitia').find(x => x.id === p.id) || p;
+  peta = petaFolder_(p);
   if (peta[no]) {
     try {
       const f = DriveApp.getFolderById(peta[no]);
@@ -769,10 +792,26 @@ function daftar(q) {
   return bukaSesi_(disimpan);
 }
 
+/** Had cubaan: selepas MAKS_CUBA kegagalan, kunci HAD_CUBA_MIN minit (CacheService) */
+const MAKS_CUBA = 8, HAD_CUBA_MIN = 15;
+function semakCuba_(kunci) {
+  const n = Number(cache_().get('CUBA_' + kunci)) || 0;
+  mesti_(n < MAKS_CUBA, 'Terlalu banyak cubaan gagal. Cuba lagi selepas ' + HAD_CUBA_MIN + ' minit.');
+}
+function gagalCuba_(kunci) {
+  const k = 'CUBA_' + kunci;
+  cache_().put(k, String((Number(cache_().get(k)) || 0) + 1), HAD_CUBA_MIN * 60);
+}
+
 function login(q) {
   const emel = bersih_(q.emel, 120).toLowerCase();
+  semakCuba_('L_' + emel);
   const u = rows_('Pengguna').find(x => x.emel === emel);
-  mesti_(u && u.hash === hash_(String(q.kataLaluan || ''), u.salt), 'Emel atau kata laluan tidak betul.');
+  if (!(u && u.hash === hash_(String(q.kataLaluan || ''), u.salt))) {
+    gagalCuba_('L_' + emel);
+    throw new Error('Emel atau kata laluan tidak betul.');
+  }
+  cache_().remove('CUBA_L_' + emel);
   mesti_(u.status !== 'NYAHAKTIF', 'Akaun anda telah dinyahaktifkan. Hubungi pentadbir sistem.');
   return bukaSesi_(u);
 }
@@ -881,10 +920,11 @@ function muatNaikFoto(q, u) {
   mesti_(bolehUrusGuru_(u, sasaran.id));
   mesti_(saizB64_(q.data) < 3 * 1048576, 'Gambar terlalu besar.');
   const f = simpanBlob_(folderSistem_('_FOTO_PROFIL'), q.data, 'image/jpeg', 'foto_' + sasaran.id + '_' + Date.now() + '.jpg');
+  const fotoLama = sasaran.fotoId;
   update_('Pengguna', sasaran.id, { fotoId: f.getId(), dikemaskini: now_() });
   const durl = 'data:image/jpeg;base64,' + String(q.data).replace(/^data:[^,]*,/, '');
   if (durl.length < 95000) try { cache_().put('IMG_' + f.getId(), durl, CACHE_TTL); } catch (e) { /* */ }
-  buangDrive_(sasaran.fotoId);
+  buangDrive_(fotoLama);
   return { fotoId: f.getId() };
 }
 
@@ -893,8 +933,9 @@ function muatNaikJadual(q, u) {
   mesti_(/^(application\/pdf|image\/(jpeg|png|webp))$/.test(mime), 'Jadual waktu mesti PDF, JPEG atau PNG.');
   mesti_(saizB64_(q.data) <= MAKS_FAIL_MB * 1048576, 'Saiz fail melebihi ' + MAKS_FAIL_MB + 'MB.');
   const f = simpanBlob_(folderSistem_('_JADUAL_WAKTU', true), q.data, mime, 'Jadual_' + u.nama + '_' + Date.now());
-  buangDrive_(u.jadualId);
+  const lama = u.jadualId;
   update_('Pengguna', u.id, { jadualId: f.getId(), jadualMime: mime, dikemaskini: now_() });
+  buangDrive_(lama);
   log_(u, '', '8', 'JADUAL', 'Jadual waktu peribadi dikemas kini');
   return { jadualId: f.getId(), jadualMime: mime };
 }
@@ -903,7 +944,9 @@ function lihatJadual(q, u) {
   const s = userById_(q.userId || u.id);
   mesti_(s && s.jadualId, 'Jadual waktu belum dimuat naik.');
   mesti_(bolehUrusGuru_(u, s.id) || senaraiAktif_().some(p => akses_(u, p).lihat && ahliPanitia_(p).some(a => a.id === s.id)));
-  const b = DriveApp.getFileById(s.jadualId).getBlob();
+  let fd;
+  try { fd = DriveApp.getFileById(s.jadualId); } catch (e) { throw new Error('Salinan jadual waktu tidak lagi wujud dalam Google Drive. Muat naik semula.'); }
+  const b = fd.getBlob();
   return { nama: 'Jadual Waktu ' + s.nama, mime: b.getContentType(), driveId: s.jadualId, data: Utilities.base64Encode(b.getBytes()) };
 }
 
@@ -943,10 +986,11 @@ function muatTurun(q) {
     mesti_(a.lihat && (f.folderNo !== '9' || a.kew));
   }
   mesti_(f.driveId, 'Item ini ialah pautan luar. Buka pautan untuk melihatnya.');
-  const b = DriveApp.getFileById(f.driveId).getBlob();
-  const bytes = b.getBytes();
-  mesti_(bytes.length < 25 * 1048576, 'Fail terlalu besar untuk dimuat turun melalui aplikasi. Buka melalui Google Drive.');
-  return { nama: b.getName(), mime: b.getContentType(), data: Utilities.base64Encode(bytes) };
+  let fd;
+  try { fd = DriveApp.getFileById(f.driveId); } catch (e) { throw new Error('Fail tidak lagi wujud dalam Google Drive.'); }
+  mesti_(fd.getSize() < 25 * 1048576, 'Fail terlalu besar untuk dimuat turun melalui aplikasi. Buka melalui Google Drive.');
+  const b = fd.getBlob();
+  return { nama: b.getName(), mime: b.getContentType(), data: Utilities.base64Encode(b.getBytes()) };
 }
 
 /* =====================================================================
@@ -984,18 +1028,20 @@ function batch(q, u) {
   const c = cache_();
   const sudah = ops.length ? c.getAll(ops.filter(o => o.id).map(o => 'OP_' + o.id)) : {};
   _BATCH = true;
-  const hasil = ops.map(op => {
-    try {
-      mesti_(BOLEH_BATCH.indexOf(op.action) >= 0, 'Tindakan tidak dibenarkan: ' + op.action);
-      if (op.id && sudah['OP_' + op.id]) return { id: op.id, ok: true, ulang: true };
-      ACTIONS[op.action](Object.assign({}, op.data || {}, { token: q.token }), userById_(u.id) || u);
-      if (op.id) c.put('OP_' + op.id, '1', CACHE_TTL);
-      return { id: op.id, ok: true };
-    } catch (e) {
-      return { id: op.id, ok: false, error: String((e && e.message) || e) };
-    }
-  });
-  _BATCH = false;
+  let hasil;
+  try {
+    hasil = ops.map(op => {
+      try {
+        mesti_(BOLEH_BATCH.indexOf(op.action) >= 0, 'Tindakan tidak dibenarkan: ' + op.action);
+        if (op.id && sudah['OP_' + op.id]) return { id: op.id, ok: true, ulang: true };
+        ACTIONS[op.action](Object.assign({}, op.data || {}, { token: q.token }), userById_(u.id) || u);
+        if (op.id) c.put('OP_' + op.id, '1', CACHE_TTL);
+        return { id: op.id, ok: true };
+      } catch (e) {
+        return { id: op.id, ok: false, error: mesejRalat_(e) };
+      }
+    });
+  } finally { _BATCH = false; }
   return { hasil, perluSync: true };
 }
 
@@ -1016,9 +1062,19 @@ function jadualIndeks_(paksa) {
   const url = String(tetapan_().jadualCsvUrl || '').trim();
   if (!url) return null;
   const kunci = 'JW_' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, url)).slice(0, 16);
-  if (!paksa) { const c = cacheBaca_(kunci); if (c) return c; }
-  const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
-  mesti_(res.getResponseCode() === 200, 'Jadual waktu tidak dapat dibaca (HTTP ' + res.getResponseCode() + '). Pastikan Google Sheet diterbitkan sebagai CSV.');
+  if (!paksa) {
+    const c = cacheBaca_(kunci); if (c) return c;
+    const gagal = cache_().get(kunci + '_GAGAL');
+    if (gagal) throw new Error(gagal);
+  }
+  let res;
+  try { res = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true }); }
+  catch (e) { cache_().put(kunci + '_GAGAL', 'Jadual waktu tidak dapat dibaca: ' + e.message, 300); throw e; }
+  if (res.getResponseCode() !== 200) {
+    const m = 'Jadual waktu tidak dapat dibaca (HTTP ' + res.getResponseCode() + '). Pastikan Google Sheet diterbitkan sebagai CSV.';
+    cache_().put(kunci + '_GAGAL', m, 300); // elak cuba semula setiap permintaan selama 5 minit
+    throw new Error(m);
+  }
   const csv = Utilities.parseCsv(res.getContentText('UTF-8'));
   mesti_(csv.length > 1, 'Fail CSV jadual waktu kosong.');
   const h = csv[0].map(x => String(x).trim().toLowerCase());
@@ -1263,6 +1319,13 @@ function semakFolder_(u, p, no) {
   return String(n);
 }
 
+/** Pastikan tugasanId (jika ada) wujud dalam panitia yang sama */
+function tugasanSah_(p, id) {
+  id = bersih_(id, 20);
+  if (!id) return '';
+  return rows_('Tugasan').some(t => t.id === id && t.panitiaId === p.id) ? id : '';
+}
+
 function muatNaikFail(q, u) {
   const p = panitia_(q.panitiaId);
   const no = semakFolder_(u, p, q.folderNo);
@@ -1274,7 +1337,7 @@ function muatNaikFail(q, u) {
   const rec = {
     id: uid_(), panitiaId: p.id, folderNo: no, tajuk: bersih_(q.tajuk, 150) || file.getName(),
     penerangan: bersih_(q.penerangan, 500), jenis: 'DRIVE', url: 'https://drive.google.com/file/d/' + file.getId() + '/view',
-    driveId: file.getId(), mime: f.mime || 'application/octet-stream', saiz: saiz, tugasanId: bersih_(q.tugasanId, 20), pemilikId: u.id,
+    driveId: file.getId(), mime: f.mime || 'application/octet-stream', saiz: saiz, tugasanId: tugasanSah_(p, q.tugasanId), pemilikId: u.id,
     pemilikNama: u.nama, dicipta: now_(), status: 'AKTIF'
   };
   insert_('Fail', rec);
@@ -1291,7 +1354,7 @@ function tambahPautan(q, u) {
   mesti_(tajuk, 'Isi tajuk dokumen.');
   const rec = {
     id: uid_(), panitiaId: p.id, folderNo: no, tajuk, penerangan: bersih_(q.penerangan, 500), jenis: 'LINK',
-    url, driveId: '', mime: '', saiz: 0, tugasanId: bersih_(q.tugasanId, 20), pemilikId: u.id,
+    url, driveId: '', mime: '', saiz: 0, tugasanId: tugasanSah_(p, q.tugasanId), pemilikId: u.id,
     pemilikNama: u.nama, dicipta: now_(), status: 'AKTIF'
   };
   insert_('Fail', rec);
@@ -1352,7 +1415,9 @@ function tambahTugasan(q, u) {
   mesti_(akses_(u, p).su, 'Hanya Ketua Panitia atau Setiausaha boleh menambah tugasan.');
   const tajuk = bersih_(q.tajuk, 120);
   mesti_(tajuk, 'Isi nama dokumen wajib.');
-  const no = Number(q.folderNo) || 4;
+  let no = Math.floor(Number(q.folderNo)) || 4;
+  if (no < 1 || no > 10) no = 4;
+  if (no === 9) mesti_(akses_(u, p).kew, 'Folder 09 terhad.');
   insert_('Tugasan', { id: uid_(), panitiaId: p.id, tajuk, folderNo: no, tarikhAkhir: bersih_(q.tarikhAkhir, 20), diciptaOleh: u.nama, dicipta: now_() });
   log_(u, p.id, String(no), 'TUGASAN', 'Dokumen wajib baharu: ' + tajuk);
   return balasDetail_(p.id, u);
@@ -1411,7 +1476,7 @@ function janaLaporan(q, u) {
     id: uid_(), panitiaId: p.id, folderNo: '10', tajuk: 'Laporan: ' + d.program,
     penerangan: 'Laporan satu muka surat dijana automatik' + (d.tarikh ? ' — ' + d.tarikh : ''), jenis: 'DRIVE',
     url: file.getUrl(), driveId: file.getId(), mime: 'application/pdf', saiz: pdf.getBytes().length,
-    tugasanId: bersih_(q.tugasanId, 20), pemilikId: u.id, pemilikNama: u.nama, dicipta: now_(), status: 'AKTIF'
+    tugasanId: tugasanSah_(p, q.tugasanId), pemilikId: u.id, pemilikNama: u.nama, dicipta: now_(), status: 'AKTIF'
   };
   insert_('Fail', rec);
   log_(u, p.id, '10', 'JANA LAPORAN', d.program);
@@ -1482,7 +1547,7 @@ function janaPemantau(q, u) {
   mesti_(akses_(u, p).urus, 'Hanya Ketua Panitia boleh menjana pautan pemantau.');
   const hari = Math.min(Math.max(Number(q.hari) || 3, 1), 30);
   const kod = uid_(20);
-  const kata = String(Math.floor(100000 + Math.random() * 900000));
+  const kata = String(100000 + parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 12), 16) % 900000);
   const salt = uid_(16);
   const tamat = new Date(Date.now() + hari * 864e5).toISOString();
   const label = bersih_(q.label, 80) || 'Pemantau';
@@ -1504,7 +1569,11 @@ function pemantauSah_(c) {
   c = c || {};
   const x = rows_('Pemantau').find(r => r.kod === String(c.kod || ''));
   mesti_(x && x.status === 'AKTIF' && new Date(x.tamat).getTime() > Date.now(), 'Pautan pemantau tidak sah atau telah tamat tempoh.');
-  mesti_(x.hash === hash_(String(c.kataLaluan || ''), x.salt), 'Kata laluan pemantau tidak betul.');
+  semakCuba_('P_' + x.id);
+  if (x.hash !== hash_(String(c.kataLaluan || ''), x.salt)) {
+    gagalCuba_('P_' + x.id);
+    throw new Error('Kata laluan pemantau tidak betul.');
+  }
   return x;
 }
 
@@ -1537,8 +1606,9 @@ function senaraiPengguna(q, u) {
   const g = gens_();
   const etag = 'A|' + APP_VERSION + '|' + ['Pengguna', 'Keahlian', 'Panitia', 'Tetapan'].map(n => g[n]).join('.');
   if (q && q.etagAdm && q.etagAdm === etag) return { sama: true, etag };
+  const kotor = ['Pengguna', 'Keahlian', 'Panitia', 'Tetapan'].some(n => _KOTOR[n]);
   return {
-    etag,
+    etag: kotor ? '' : etag, // generasi akan bertukar di selesai_(); etag kosong = muat penuh kali seterusnya
     pengguna: rows_('Pengguna').map(x => pub_(x, true)).sort((a, b) => a.nama.localeCompare(b.nama)),
     keahlian: rows_('Keahlian').map(k => ({ panitiaId: k.panitiaId, userId: k.userId, status: k.status })),
     panitia: senaraiAktif_().map(p => ({ id: p.id, nama: p.nama, kod: p.kod, ketuaId: p.ketuaId, setiausahaId: p.setiausahaId })),

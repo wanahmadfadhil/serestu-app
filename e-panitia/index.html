@@ -550,21 +550,26 @@ function call(action, data = {}, opt = {}) {
   } else if (!API_URL || API_URL.startsWith('TAMPAL')) {
     p = Promise.reject(new Error('API_URL belum diisi dalam index.html.'));
   } else {
-    p = fetch(API_URL, { method: 'POST', body: JSON.stringify(body) })
+    const ctl = window.AbortController ? new AbortController() : null;
+    const tamat = ctl ? setTimeout(() => ctl.abort(), opt.masa || 120000) : null;
+    p = fetch(API_URL, { method: 'POST', body: JSON.stringify(body), signal: ctl ? ctl.signal : undefined })
       .then(r => r.text())
       .then(t => {
         try { return JSON.parse(t); }
         catch (e) { throw new Error(diagnosisHTML(t)); }
       })
       .catch(e => {
+        if (e && e.name === 'AbortError') { const er = new Error('Pelayan mengambil masa terlalu lama dan tidak dapat dihubungi. Cuba lagi.'); er.offline = !navigator.onLine; er.sibuk = true; throw er; }
         if (e instanceof TypeError) { const er = new Error('Tiada sambungan internet atau pelayan tidak dapat dihubungi.'); er.offline = true; throw er; }
         throw e;
-      });
+      })
+      .finally(() => { if (tamat) clearTimeout(tamat); });
   }
   return p.then(r => {
     if (!r || !r.ok) {
       const msg = (r && r.error) || 'Ralat tidak diketahui.';
       if (msg === 'SESI_TAMAT') { tamatSesi(); throw new Error('Sesi anda telah tamat. Sila log masuk semula.'); }
+      if (/^PELAYAN_SIBUK/.test(msg)) { const er = new Error(msg.replace(/^PELAYAN_SIBUK:\s*/, '')); er.sibuk = true; throw er; }
       throw new Error(msg);
     }
     return r.data;
@@ -796,6 +801,14 @@ async function boot() {
 
 function setInit(d) {
   if (d.token) { S.token = d.token; ls.set('ep_token', d.token); delete d.token; }
+  if (d.user && ls.get('ep_uid') !== d.user.id) { // akaun lain pada peranti yang sama: buang cache pengguna sebelumnya
+    Object.keys(store.mem).filter(k => /^ep_(d_|jw_|adm|etag)/.test(k)).forEach(k => store.del(k));
+    Object.keys(MEM).forEach(k => delete MEM[k]);
+    Object.keys(JWDATA).forEach(k => delete JWDATA[k]);
+    S.detail = null; S.adm = null; S.masaMuat = {};
+    if (ls.get('ep_uid')) { S.panitiaId = null; ls.del('ep_panitia'); }
+    ls.set('ep_uid', d.user.id);
+  }
   S.data = d; S.user = d.user;
   store.set('ep_init', d);
   const boleh = d.panitia.filter(p => p.lihat || p.peranan === 'MENUNGGU');
@@ -1031,18 +1044,20 @@ async function hantarOutbox() {
   const ids = new Set(kump.map(o => o.id));
   try {
     const r = await call('batch', { ops: kump.map(o => ({ id: o.id, action: o.action, data: o.data })), aktif: S.panitiaId }, { senyap: true });
-    buangOp(o => ids.has(o.id));
-    obCuba = 0;
-    (r.hasil || []).filter(x => !x.ok).forEach(x => { const o = kump.find(k => k.id === x.id); toast(`${o ? o.label : 'Perubahan'} gagal: ${x.error}`, 'ralat'); });
+    const ulang = new Set((r.hasil || []).filter(x => !x.ok && /^PELAYAN_SIBUK/.test(x.error || '')).map(x => x.id));
+    buangOp(o => ids.has(o.id) && !ulang.has(o.id));
+    obCuba = ulang.size ? obCuba + 1 : 0;
+    (r.hasil || []).filter(x => !x.ok && !ulang.has(x.id)).forEach(x => { const o = kump.find(k => k.id === x.id); toast(`${o ? o.label : 'Perubahan'} gagal: ${x.error}`, 'ralat'); });
     OUTBOX_JALAN = false;
-    if (outbox().length) hantarOutbox();
+    if (ulang.size) setTimeout(hantarOutbox, Math.min(30000, 2000 * Math.pow(2, obCuba)));
+    else if (outbox().length) hantarOutbox();
     else {
       terimaSync(r.sync, true); // keadaan sebenar pelayan (membetulkan perubahan yang gagal)
       if (kump.some(o => ADMIN_OPS.includes(o.action))) { admMasa = 0; if (S.tab === 'admin') muatAdmin(true); }
     }
   } catch (e) {
     OUTBOX_JALAN = false;
-    if (e.offline || /sambungan|internet|dihubungi/i.test(e.message)) {
+    if (e.offline || e.sibuk || /sambungan|internet|dihubungi/i.test(e.message)) {
       obCuba++; setLuar(true);
       setTimeout(hantarOutbox, Math.min(30000, 2000 * Math.pow(2, obCuba)));
     } else {
@@ -1162,8 +1177,6 @@ async function segarDetail() {
   await sync();
   const own = S.data && S.data.panitia.some(p => p.id === S.panitiaId && p.peranan);
   if (!own) { try { await muatDetail(S.panitiaId, true, true); } catch (e) { toast(e.message, 'ralat'); } }
-  render(); return;
-  call('init', {}, { senyap: true }).then(d => { setInit(d); }).catch(() => { });
   render();
 }
 
@@ -1544,7 +1557,9 @@ async function pratonton(id) {
       else {
         const bin = atob(r.data), arr = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-        b.innerHTML = `<iframe src="${URL.createObjectURL(new Blob([arr], { type: 'application/pdf' }))}" title="Pratonton"></iframe>`;
+        const bu = URL.createObjectURL(new Blob([arr], { type: 'application/pdf' }));
+        b.innerHTML = `<iframe src="${bu}" title="Pratonton"></iframe>`;
+        const pantau = setInterval(() => { if (!document.body.contains(b)) { URL.revokeObjectURL(bu); clearInterval(pantau); } }, 5000);
       }
     } catch (e) { const b = $('#prevBadan'); if (b) b.innerHTML = `<div class="prev-tiada"><p>${esc(e.message)}</p></div>`; }
   }
@@ -1669,7 +1684,7 @@ function jadualHTML(key) {
     const hariSl = sl.filter(s => s.hari === ui.hari);
     const baris = [];
     hariSl.forEach((s, i) => {
-      if (i > 0 && s.m[0] - hariSl[i - 1].m[1] >= 30) baris.push(`<li class="kosong-slot"><span>${hariSl[i - 1].masa.split('-')[1]}</span><span>Tiada kelas, ${s.m[0] - hariSl[i - 1].m[1]} minit</span></li>`);
+      if (i > 0 && s.m[0] - hariSl[i - 1].m[1] >= 30) baris.push(`<li class="kosong-slot"><span>${esc(hariSl[i - 1].masa.split('-')[1] || '')}</span><span>Tiada kelas, ${s.m[0] - hariSl[i - 1].m[1]} minit</span></li>`);
       const kini = ui.hari === hariIni() && kiniMinit >= s.m[0] && kiniMinit < s.m[1];
       baris.push(`<li class="${kini ? 'kini' : ''}" style="--c:${warnaSubjek(s.subjek)}"><span class="masa"><b>${esc(s.masa.split('-')[0])}</b>${esc(s.masa.split('-')[1] || '')}</span>
         <span class="isi"><b>${esc(tajukSubjek(s.subjek))}</b><small>${esc(s.kelas.join(', ') || '-')}${s.period ? ', waktu ' + s.period : ''}</small></span></li>`);
@@ -1686,7 +1701,7 @@ function jadualHTML(key) {
   }
   return `<div class="jw-atas"><div class="jw-ringkas"><b>${semua.length}</b> <span>waktu seminggu, ${jam} jam</span></div></div>
     <p class="jw-padan">${ic('check', 14)}Dipadankan dengan "${esc(d.namaJadual)}"${d.padan === 'hampir' ? ' (padanan hampir)' : ''}${d.bolehPilih ? ` <button data-act="jwTukarNama" data-key="${key}">Bukan nama saya?</button>` : ''}</p>
-    <div class="jw-bar">${sesiAda.length > 1 ? `<div class="pil" role="group" aria-label="Sesi">${sesiAda.map(x => `<button data-act="jwSesi" data-key="${key}" data-v="${x}" aria-pressed="${x === ui.sesi}">${x.charAt(0).toUpperCase() + x.slice(1)}</button>`).join('')}</div>` : ''}
+    <div class="jw-bar">${sesiAda.length > 1 ? `<div class="pil" role="group" aria-label="Sesi">${sesiAda.map(x => `<button data-act="jwSesi" data-key="${key}" data-v="${esc(x)}" aria-pressed="${x === ui.sesi}">${esc(x.charAt(0).toUpperCase() + x.slice(1))}</button>`).join('')}</div>` : ''}
       <div class="pil" role="group" aria-label="Paparan"><button data-act="jwMod" data-key="${key}" data-v="hari" aria-pressed="${ui.mod === 'hari'}">Harian</button><button data-act="jwMod" data-key="${key}" data-v="minggu" aria-pressed="${ui.mod === 'minggu'}">Mingguan</button></div></div>
     ${badan}`;
 }
@@ -1913,6 +1928,7 @@ const ACT = {
       <button class="btn utama" type="submit">Simpan</button></form>`, { fokus: true });
   },
   padamTugasan: async el => {
+    if (el.dataset.id.startsWith('tmp_') && !outbox().some(o => o.action === 'tambahTugasan' && o.data._tmp === el.dataset.id)) return toast('Dokumen wajib ini sedang disimpan. Cuba sebentar lagi.', 'ralat');
     if (!await sahkan('Padam dokumen wajib?', 'Senarai semak bagi dokumen ini akan dibuang. Fail yang telah dihantar tidak terjejas.', 'Padam', true)) return;
     const pid = S.panitiaId, d = MEM[pid] || S.detail, id = el.dataset.id;
     d.tugasan = d.tugasan.filter(t => t.id !== id);
@@ -1930,6 +1946,7 @@ const ACT = {
   salinPautan: el => { const f = cariFail(el.dataset.id); if (f) salin(f.url, 'Pautan disalin'); },
   padamFail: async el => {
     const f = cariFail(el.dataset.id);
+    if (!f || !MEM[S.panitiaId]) return;
     if (!await sahkan('Padam fail ini?', `"${esc(f.tajuk)}" akan dipindahkan ke tong sampah dan disimpan selama 30 hari. Ketua Panitia boleh memulihkannya.`, 'Padam', true)) return;
     const pid = S.panitiaId, d = MEM[pid];
     d.fail = d.fail.filter(x => x.id !== f.id);
@@ -2249,7 +2266,8 @@ const SUB = {
     const g = S.laporanGambar.filter(Boolean);
     if (!g.length) return toast('Pilih sekurang-kurangnya satu gambar aktiviti.', 'ralat');
     const pid = S.panitiaId;
-    const tarikh = f.tarikh.value ? new Date(f.tarikh.value).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+    const [ty, tm, td] = (f.tarikh.value || '').split('-').map(Number);
+    const tarikh = ty ? new Date(ty, tm - 1, td).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
     const data = { panitiaId: pid, program: f.program.value, tarikh, sasaran: f.sasaran.value, objektif: f.objektif.value, impak: f.impak.value, gambar: g, tugasanId: f.tugasanId ? f.tugasanId.value : '' };
     tutupSheet(); S.laporanGambar = [];
     toast('Laporan sedang dijana. Anda boleh teruskan kerja lain.');
@@ -2477,8 +2495,7 @@ document.addEventListener('keydown', e => {
   tutupSheet();
 });
 window.addEventListener('online', () => { setLuar(false); paparAntri(); if (S.token && S.data) { hantarOutbox(); sync(); } });
-window.addEventListener('offline', () => paparAntri());
-window.addEventListener('offline', () => setLuar(true));
+window.addEventListener('offline', () => { paparAntri(); setLuar(true); });
 
 /* ---------- PWA ---------- */
 function ikonPNG(n) {
