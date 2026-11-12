@@ -510,6 +510,7 @@ body.mod-pemantau .app{padding-bottom:40px}
 .tk-grid .hd{font-size:11px;color:var(--muted);padding:2px 0 4px}
 .tk-hari{height:42px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:13.5px;gap:2px}
 .tk-hari:hover{background:var(--surface-2)}
+.tk-tip{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;font-size:12.5px;color:var(--muted)}
 .tk-hari.kini{background:var(--green-soft);color:var(--green);font-weight:600}
 .tk-hari[aria-pressed="true"]{background:var(--green);color:#fff;font-weight:600}
 .tk-titik{display:flex;gap:2px;height:5px}
@@ -3186,15 +3187,16 @@ function viewTakwim() {
       <span class="tk-titik">${ac.slice(0, 3).map(a => `<i class="${tindih ? 'r' : a.jenis === 'MESYUARAT' ? 'm' : ''}"></i>`).join('')}</span></button>`);
   }
   const senarai = S.tkHari ? bulanIni.filter(a => a.mula <= S.tkHari && a.tamat >= S.tkHari) : bulanIni;
-  const bolehTambah = pentadbirKur() || (K.panitiaSaya || []).length;
+  const bolehTambah = bolehTambahTakwim();
   const pilihanP = [...new Set((K.program || []).map(x => x.panitiaId).filter(Boolean))].map(id => ({ id, nama: namaPanitia(id) })).filter(x => x.nama).sort((a, b) => a.nama.localeCompare(b.nama));
   $('#main').innerHTML = `
     <div class="tk-alat"><select data-chg="tkTapis" aria-label="Tapis takwim"><option value="">Semua program</option><option value="SEKOLAH" ${tapis === 'SEKOLAH' ? 'selected' : ''}>JK Kurikulum &amp; peringkat sekolah</option>
       ${pilihanP.map(p => `<option value="${p.id}" ${tapis === p.id ? 'selected' : ''}>Panitia ${esc(p.nama)}</option>`).join('')}</select>
-      ${bolehTambah ? `<button class="btn kuning" data-act="borangProgram">${ic('plus', 18)}Program</button>` : ''}</div>
+      ${bolehTambah ? `<button class="btn kuning" data-act="borangProgram">${ic('plus', 18)}Aktiviti</button>` : ''}</div>
     <section class="tk-kal">
       <div class="tk-kal-atas"><button class="ib" data-act="tkBulan" data-v="-1" aria-label="Bulan sebelum">${ic('back', 18)}</button><h3>${BULAN_PENUH[m - 1]} ${y}</h3><button class="ib" data-act="tkBulan" data-v="1" aria-label="Bulan seterusnya">${ic('chev', 18)}</button></div>
       <div class="tk-grid">${['Isn', 'Sel', 'Rab', 'Kha', 'Jum', 'Sab', 'Ahd'].map(h => `<span class="hd">${h}</span>`).join('')}${sel.join('')}</div>
+      ${bolehTambah ? `<p class="tk-tip">${ic('plus', 14)}Ketik mana-mana tarikh untuk mengisi aktiviti pada hari itu</p>` : ''}
     </section>
     <div class="blok-kepala" style="margin:16px 4px 8px"><h3>${S.tkHari ? 'Program pada ' + tarikhPendek(S.tkHari) : 'Program bulan ini'}</h3>${S.tkHari ? '<button class="btn kecil" data-act="tkHari" data-v="">Semua</button>' : `<span class="muted">${bulanIni.length} acara</span>`}</div>
     <div class="tk-senarai">${senarai.map(a => acaraHTML(a, semua)).join('') || `<div class="blok" style="margin-top:0">${kosongHTML('calendar', S.tkHari ? 'Tiada program pada hari ini.' : 'Tiada program dalam bulan ini.')}</div>`}</div>`;
@@ -3222,16 +3224,17 @@ function lihatAcara(id, jenis) {
       ${bolehOPR ? `<button class="btn utama" data-act="jadikanOPR" data-id="${x.id}">${ic('report', 18)}Jadikan OPR</button>` : ''}
       ${boleh ? `<button class="btn" data-act="borangProgram" data-id="${x.id}">${ic('edit', 18)}Ubah</button><button class="btn bahaya" data-act="padamProgram" data-id="${x.id}">${ic('trash', 18)}Padam</button>` : ''}</div>`);
 }
-function borangProgram(x) {
+function bolehTambahTakwim() { return pentadbirKur() || (K_().panitiaSaya || []).length > 0; }
+function borangProgram(x, tarikh) {
   const K = K_(), pk = pentadbirKur();
   const pilihan = pk ? (S.data.semuaPanitia || []) : (S.data.semuaPanitia || []).filter(p => (K.panitiaSaya || []).includes(p.id));
   if (!pk && !pilihan.length) return toast('Hanya pentadbir, Ketua Panitia atau Setiausaha Panitia boleh menambah aktiviti dalam takwim.', 'ralat');
   const v = k => esc(x ? x[k] || '' : '');
   const pre = x ? x.panitiaId : (S.panitiaId && pilihan.some(p => p.id === S.panitiaId) ? S.panitiaId : (pilihan[0] || {}).id || '');
-  bukaSheet(`<h3 class="sheet-t">${x ? 'Ubah program' : 'Program baharu'}</h3><form class="borang" data-sub="hantarProgram"><input type="hidden" name="id" value="${v('id')}">
+  bukaSheet(`<h3 class="sheet-t">${x ? 'Ubah aktiviti' : 'Aktiviti baharu'}${!x && tarikh ? ' · ' + tarikhPendek(tarikh) : ''}</h3><form class="borang" data-sub="hantarProgram"><input type="hidden" name="id" value="${v('id')}">
     <label class="medan"><span>Penganjur</span><select name="panitiaId"><option value="" ${x && !x.panitiaId ? 'selected' : ''}>Peringkat sekolah (semua panitia)</option>${pilihan.map(p => `<option value="${p.id}" ${p.id === pre ? 'selected' : ''}>Panitia ${esc(p.nama)}</option>`).join('')}</select></label>
     <label class="medan"><span>Nama program</span><input name="tajuk" value="${v('tajuk')}" maxlength="200" required placeholder="cth. Minggu Sains 2026"></label>
-    <div class="dua"><label class="medan"><span>Tarikh mula</span><input type="date" name="tarikhMula" value="${v('tarikhMula') || (S.tkHari || '')}" required data-inp="tkTindih"></label>
+    <div class="dua"><label class="medan"><span>Tarikh mula</span><input type="date" name="tarikhMula" value="${v('tarikhMula') || tarikh || ''}" required data-inp="tkTindih"></label>
       <label class="medan"><span>Tarikh tamat <i>(pilihan)</i></span><input type="date" name="tarikhTamat" value="${v('tarikhTamat')}" data-inp="tkTindih"></label></div>
     <div id="tkAmaran"></div>
     <div class="dua"><label class="medan"><span>Masa <i>(pilihan)</i></span><input name="masa" value="${v('masa')}" maxlength="60" placeholder="cth. 8.00 pagi"></label>
@@ -3239,8 +3242,9 @@ function borangProgram(x) {
     <datalist id="senaraiKatOPR">${KATEGORI_OPR.map(k => `<option value="${k}">`).join('')}</datalist>
     <label class="medan"><span>Tempat <i>(pilihan)</i></span><input name="tempat" value="${v('tempat')}" maxlength="200"></label>
     <label class="medan"><span>Catatan <i>(pilihan)</i></span><textarea name="catatan" rows="2" maxlength="500">${v('catatan')}</textarea></label>
-    <button class="btn utama" type="submit">Simpan program</button></form>`, { fokus: !x });
+    <button class="btn utama" type="submit">Simpan aktiviti</button></form>`, { fokus: !x });
   semakTindih();
+  if (!x) setTimeout(() => { const t = $('form[data-sub=hantarProgram] [name=tajuk]'); if (t) t.focus(); }, 250);
 }
 function semakTindih() {
   const f = $('form[data-sub=hantarProgram]'), box = $('#tkAmaran'); if (!f || !box) return;
@@ -3394,9 +3398,19 @@ Object.assign(ACT, {
   keKurikulum: el => { S.kurTab = el.dataset.t || S.kurTab; pergi('kurikulum'); },
   kurTab: el => { S.kurTab = el.dataset.t; viewKurikulum(); },
   tkBulan: el => { const [y, m] = S.tkBulan.split('-').map(Number); const t = new Date(y, m - 1 + Number(el.dataset.v), 1); S.tkBulan = `${t.getFullYear()}-${pad(t.getMonth() + 1)}`; S.tkHari = null; viewTakwim(); },
-  tkHari: el => { S.tkHari = el.dataset.v && S.tkHari !== el.dataset.v ? el.dataset.v : null; viewTakwim(); },
+  tkHari: el => {
+    const v = el.dataset.v;
+    if (!bolehTambahTakwim() || !v) { S.tkHari = v && S.tkHari !== v ? v : null; return viewTakwim(); }
+    // Pengisi takwim: ketik tarikh terus buka borang (hari kosong) atau senarai hari itu + butang tambah
+    S.tkHari = v; viewTakwim();
+    const ada = acaraTakwim().filter(a => (!S.tkTapis || (S.tkTapis === 'SEKOLAH' ? !a.panitiaId : a.panitiaId === S.tkTapis)) && a.mula <= v && a.tamat >= v);
+    if (!ada.length) return borangProgram(null, v);
+    bukaSheet(`<h3 class="sheet-t">${new Date(tarikhObj(v)).toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</h3>
+      <button class="btn utama penuh" data-act="borangProgram" data-tarikh="${v}" style="margin-bottom:12px">${ic('plus', 18)}Tambah aktiviti pada tarikh ini</button>
+      <div class="tk-senarai">${ada.map(a => acaraHTML(a, acaraTakwim())).join('')}</div>`);
+  },
   lihatAcara: el => lihatAcara(el.dataset.id, el.dataset.jenis),
-  borangProgram: el => { const x = el.dataset.id ? (K_().program || []).find(p => p.id === el.dataset.id) : null; tutupSheet(); borangProgram(x); },
+  borangProgram: el => { const x = el.dataset.id ? (K_().program || []).find(p => p.id === el.dataset.id) : null; tutupSheet(); borangProgram(x, el.dataset.tarikh); },
   padamProgram: async el => {
     if (!await sahkan('Padam program?', 'Program akan dibuang daripada takwim.', 'Padam', true)) return;
     const K = K_(), x = K.program.find(p => p.id === el.dataset.id);
@@ -3482,7 +3496,7 @@ Object.assign(SUB, {
     const lama = K.program.find(p => p.id === id);
     const obj = Object.assign({ laporanId: '', diciptaId: S.user.id, diciptaOleh: S.user.nama }, lama || {}, data, { panitia: namaPanitia(data.panitiaId) });
     K.program = K.program.filter(p => p.id !== id).concat(obj);
-    simpanKur(); tutupSheet(); S.tkBulan = data.tarikhMula.slice(0, 7); renderKurSemasa(); toast(baru ? 'Program ditambah ke takwim' : 'Program dikemas kini');
+    simpanKur(); tutupSheet(); S.tkBulan = data.tarikhMula.slice(0, 7); renderKurSemasa(); toast(baru ? 'Aktiviti ditambah ke takwim' : 'Aktiviti dikemas kini');
     antri('simpanProgram', data, 'Simpan program ' + data.tajuk);
   },
   hantarMesyuarat: f => {
