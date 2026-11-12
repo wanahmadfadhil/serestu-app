@@ -411,6 +411,82 @@ dl.info dd{font-weight:500;text-align:right;font-size:14px;word-break:break-word
 body.mod-pemantau .app{padding-bottom:40px}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 @media print{.nav,.fab,.topbar,.carta-alat{display:none!important}}
+
+/* ---------- Laporan Aktiviti (OPR) ---------- */
+:root{--carta:#13875A}
+.lap-kepala{background:var(--green-deep);color:#fff;border-radius:20px;padding:18px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between}
+.lap-kepala small{opacity:.75;font-size:12.5px}
+.lap-kepala h2{font-size:22px;margin:2px 0 4px}
+.lap-kepala p{font-size:13px;opacity:.8}
+.lap-penapis{display:flex;gap:8px;margin-bottom:12px}
+.lap-penapis select{flex:1;min-width:0}
+.lap-senarai{display:grid;gap:10px}
+@media(min-width:720px){.lap-senarai{grid-template-columns:1fr 1fr}}
+.lap-kad{display:flex;gap:12px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px;width:100%;align-items:flex-start}
+.lap-kad:hover{border-color:var(--green)}
+.lap-kad.menunggu{opacity:.75}
+.lap-gambar{flex:none;width:96px;aspect-ratio:4/3;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;overflow:hidden;color:var(--muted)}
+.lap-gambar img{width:100%;height:100%;object-fit:cover}
+.lap-gambar.kecil{width:60px}
+.lap-isi{display:flex;flex-direction:column;gap:3px;min-width:0}
+.lap-isi b{font-size:14.5px;line-height:1.3}
+.lap-isi small{font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:4px}
+.lap-isi .chip{align-self:flex-start}
+.lap-isi .lap-oleh{color:var(--muted)}
+.lap-mini{list-style:none;display:grid;gap:4px}
+.lap-mini button{display:flex;gap:10px;align-items:center;text-align:left;width:100%;padding:6px;border-radius:12px}
+.lap-mini button:hover{background:var(--surface-2)}
+.lap-mini b{display:block;font-size:14px;line-height:1.3}
+.lap-mini small{font-size:12px;color:var(--muted)}
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:620px){.stat-grid{grid-template-columns:repeat(4,1fr)}}
+.stat-kad{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px}
+.stat-kad b{display:block;font-size:26px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat-kad span{font-size:12.5px;color:var(--ink-2)}
+.stat-kad small{display:block;font-size:11.5px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.carta-bar{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:2px;height:160px;align-items:end;border-bottom:1px solid var(--line)}
+.cb-kol{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
+.cb-bar{width:min(72%,30px);background:var(--carta);border-radius:4px 4px 0 0;display:block}
+.cb-nilai{font-size:11.5px;color:var(--ink-2);margin-bottom:3px;font-variant-numeric:tabular-nums}
+.cb-paksi{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:2px;margin-top:5px}
+.cb-paksi span{font-size:11px;color:var(--muted);text-align:center}
+.hbar{list-style:none;display:grid;gap:9px}
+.hbar li{display:grid;grid-template-columns:minmax(90px,36%) 1fr 30px;align-items:center;gap:8px;font-size:13px}
+.hbar.ahli-bar li{grid-template-columns:30px minmax(80px,32%) 1fr 30px}
+.hb-l{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-2)}
+.hb-trek{height:12px;display:block}
+.hb-bar{display:block;height:100%;background:var(--carta);border-radius:0 4px 4px 0;min-width:2px}
+.hb-bar.sifar{background:var(--line);min-width:3px}
+.hbar li>b{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.tip{position:fixed;z-index:300;background:var(--ink);color:#fff;font-size:12.5px;padding:6px 9px;border-radius:8px;pointer-events:none;opacity:0;transition:opacity .12s;max-width:240px}
+.tip.on{opacity:1}
+.jadual-data{margin-top:12px;font-size:13px}
+.jadual-data summary{cursor:pointer;color:var(--green);font-weight:500}
+.jadual-data table{margin-top:8px;width:100%}
+.opr{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:12px}
+.opr header{background:var(--green);color:#fff;text-align:center;padding:12px}
+.opr header small{display:block;font-size:11.5px;letter-spacing:.04em;opacity:.85}
+.opr header b{display:block;font-size:16px;margin:2px 0}
+.opr header span{font-size:11px;letter-spacing:.18em;color:var(--yellow);font-weight:600}
+.opr-info{display:grid;grid-template-columns:1fr 1fr}
+.opr-info>div{border-bottom:1px solid var(--line);padding:9px 12px;min-width:0}
+.opr-info>div:nth-child(odd):not(.penuh){border-right:1px solid var(--line)}
+.opr-info .penuh{grid-column:1/-1}
+.opr-info dt{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--green)}
+.opr-info dd{font-size:14px;margin-top:2px;line-height:1.5;overflow-wrap:anywhere}
+.opr-foto{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
+.opr-foto figure{margin:0}
+.opr-foto img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:var(--surface-2);cursor:zoom-in;display:block}
+.opr-foto figcaption{font-size:11px;font-weight:600;color:var(--green);text-align:center;margin-top:3px}
+.opr-oleh{padding:0 12px 14px}
+.opr-oleh small{display:block;font-size:11px;font-weight:600;color:var(--green);letter-spacing:.06em;text-transform:uppercase}
+.opr-badan{overflow:auto}
+#oprAksi{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+#oprAksi .btn{white-space:nowrap;min-width:0}
+#oprAksi .btn.utama{grid-column:1/-1}
+.slot-opr{position:relative}
+.slot-buang{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;background:rgba(28,43,57,.82);color:#fff;display:grid;place-items:center}
+.slot-buang[hidden]{display:none}
 </style>
 </head>
 <body>
@@ -943,11 +1019,11 @@ const bacaSubjek = root => $$('.sj.on', root).map(el => ({ panitiaId: el.dataset
    ===================================================================== */
 function render() {
   if (S.pemantau) return renderPemantau();
-  $$('#nav button').forEach(b => b.setAttribute('aria-current', b.dataset.tab === S.tab || (S.tab === 'admin' && b.dataset.tab === 'profil') ? 'page' : 'false'));
+  $$('#nav button').forEach(b => b.setAttribute('aria-current', b.dataset.tab === S.tab || (S.tab === 'admin' && b.dataset.tab === 'profil') || (S.tab === 'laporan' && b.dataset.tab === 'dash') ? 'page' : 'false'));
   $('#tSek').textContent = (S.data && S.data.tetapan.namaSekolah) || '';
   $('#tAv').innerHTML = avatar(S.user, 36);
   kemasFab();
-  ({ home: viewHome, dash: viewDash, folder: viewFolder, profil: viewProfil, admin: viewAdmin }[S.tab] || viewHome)();
+  ({ home: viewHome, dash: viewDash, folder: viewFolder, profil: viewProfil, admin: viewAdmin, laporan: viewLaporan }[S.tab] || viewHome)();
   hydrateImgs();
   if (S.user && S.user.wajibTukar === 'YA' && !$('.sheet-wrap[data-kunci]')) paparWajibTukar();
 }
@@ -1007,12 +1083,17 @@ const SEGAR_MS = 300000; // panitia sendiri dikemas kini oleh sync berkala
 const tandatangan = d => { try { return JSON.stringify(Object.assign({}, d, { dimuat: 0 })); } catch (e) { return Math.random(); } };
 function simpanLS(id) {
   const d = MEM[id]; if (!d) return;
-  store.set('ep_d_' + id, Object.assign({}, d, { fail: d.fail.filter(f => !f._pending) }));
+  store.set('ep_d_' + id, Object.assign({}, d, {
+    fail: d.fail.filter(f => !f._pending),
+    laporan: (d.laporan || []).filter(r => !String(r.id).startsWith('tmp_')).map(r => r._pending ? Object.assign({}, r, { _pending: false }) : r)
+  }));
 }
 function simpanDetail(d) {
   const id = d.panitia.id;
   const pending = ((MEM[id] && MEM[id].fail) || []).filter(f => f._pending);
   if (pending.length) d.fail = pending.concat(d.fail);
+  const lapTmp = ((MEM[id] && MEM[id].laporan) || []).filter(r => String(r.id).startsWith('tmp_'));
+  if (lapTmp.length) d.laporan = lapTmp.concat(d.laporan || []);
   MEM[id] = d; S.masaMuat[id] = Date.now();
   if (S.panitiaId === id) S.detail = d;
   simpanLS(id);
@@ -1117,7 +1198,7 @@ async function hantarOutbox() {
 }
 function renderSemasa() {
   if (S.pemantau || S.cartaEdit || !S.detail) return;
-  if (S.tab === 'dash') renderDash(); else if (S.tab === 'folder') renderFolder();
+  if (S.tab === 'dash') renderDash(); else if (S.tab === 'folder') renderFolder(); else if (S.tab === 'laporan') renderLaporan();
   hydrateImgs();
 }
 function kemasKiraan(pid) {
@@ -1276,6 +1357,8 @@ function renderDash() {
     <div class="blok-kepala"><h3>Rak fail panitia</h3><span class="muted">Ketik fail untuk buka</span></div>
     ${rakHTML(d)}
   </section>
+
+  ${lapRingkasHTML(d)}
 
   ${tugasSaya.length ? `<section class="blok"><div class="blok-kepala"><h3>Dokumen wajib saya</h3><span class="muted">${tugasSaya.filter(x => x.siap).length}/${tugasSaya.length} dihantar</span></div>
     <ul class="tugasan-senarai">${tugasSaya.map(({ t, siap }) => `<li><span class="dot ${siap ? 'ok' : 'belum'}" role="img" aria-label="${siap ? 'Selesai' : 'Belum dihantar'}"></span>
@@ -1568,7 +1651,7 @@ function renderFolder() {
     ${S.pemantau ? '' : `<div class="baris-btn" style="margin-bottom:10px">
       <button class="btn kecil utama" data-act="borangMuatNaik" data-no="${F.no}">${ic('upload', 16)}Muat naik</button>
       <button class="btn kecil" data-act="borangPautan" data-no="${F.no}">${ic('link', 16)}Tampal pautan</button>
-      ${F.no === 10 ? `<button class="btn kecil kuning" data-act="borangLaporan">${ic('report', 16)}Jana laporan</button>` : ''}</div>`}
+      ${F.no === 10 ? `<button class="btn kecil kuning" data-act="borangOPR">${ic('report', 16)}Laporan OPR</button>` : ''}</div>`}
     ${jumlah > 4 ? `<label class="cari">${ic('search', 18)}<input type="search" data-inp="cariFail" value="${esc(S.cari)}" placeholder="Cari tajuk, penerangan atau nama guru" aria-label="Cari fail"></label>` : ''}
     <div id="senaraiFail">${fail.length ? fail.map(f => failHTML(f, d)).join('')
       : `<div class="blok">${kosongHTML('folder', q ? 'Tiada fail sepadan dengan carian.' : (S.pemantau ? 'Folder ini belum mempunyai dokumen.' : 'Folder ini masih kosong. Muat naik fail dari telefon atau tampal pautan Google Drive.'))}</div>`}</div>`;
@@ -1879,12 +1962,14 @@ function renderPemantau() {
   $('#app').hidden = false; $('#nav').hidden = true; $('#fab').hidden = true; $('#tAv').hidden = true;
   $('#tSek').textContent = d.sekolah || '';
   if (S.folder) { renderFolder(); return; }
+  if (S.lapPemantau) { renderLaporan(); return; }
   tajuk('Pemantauan Panitia ' + d.panitia.nama);
   $('#main').innerHTML = `<div class="ingat" style="margin-top:0">${ic('shield')}<div><b>Mod baca sahaja</b><p>Dibuka untuk ${esc(d.label)}. Pautan sah hingga ${tarikhPendek(d.tamat)}.</p></div></div>
     <section class="kepala" style="margin-top:14px"><div class="kepala-atas"><span class="kepala-kod">${esc(d.panitia.kod || '')}</span></div>
       <h2>Panitia ${esc(d.panitia.nama)}</h2><p class="kepala-kp">Ketua Panitia: <b>${esc(d.panitia.ketua || 'Belum dilantik')}</b></p>
       <dl class="kepala-stat"><div><dt>Ahli</dt><dd>${d.ahli.length}</dd></div><div><dt>Fail</dt><dd>${d.fail.length}</dd></div><div><dt>Kemas kini</dt><dd class="kecil">${d.fail[0] ? masaLalu(d.fail[0].dicipta) : '-'}</dd></div></dl></section>
     <section class="blok"><div class="blok-kepala"><h3>Rak fail panitia</h3></div>${rakHTML(d)}</section>
+    ${lapRingkasHTML(d)}
     <section class="blok"><div class="blok-kepala"><h3>Carta organisasi</h3></div>${cartaHTML(d, false)}</section>
     <section class="blok"><div class="blok-kepala"><h3>Ahli panitia</h3><span class="muted">${d.ahli.length} orang</span></div>
       <ul class="ahli">${d.ahli.map(m => `<li><span class="ahli-btn">${avatar(m, 40)}<span><b>${esc(m.nama)}</b><small>${esc(peranPanitia(d, m.id))}${m.opsyen ? ', opsyen ' + esc(m.opsyen) : ''}</small></span></span></li>`).join('')}</ul></section>`;
@@ -1948,7 +2033,7 @@ const ACT = {
     bukaSheet(`<h3 class="sheet-t">Tambah ke Panitia ${esc(S.detail.panitia.nama)}</h3><div class="pilihan">
       <button data-act="borangMuatNaik" data-no="${S.tab === 'folder' && S.folder ? S.folder : ''}">${ic('upload', 22)}<span><b>Muat naik fail</b><small>Dari telefon atau komputer, terus ke Google Drive panitia</small></span></button>
       <button data-act="borangPautan" data-no="${S.tab === 'folder' && S.folder ? S.folder : ''}">${ic('link', 22)}<span><b>Tampal pautan</b><small>Google Drive, Google Sheets, Canva atau laman web</small></span></button>
-      <button data-act="borangLaporan">${ic('report', 22)}<span><b>Jana laporan bergambar</b><small>4 gambar dan 5 maklumat, siap PDF satu muka surat dalam Folder 10</small></span></button>
+      <button data-act="borangOPR">${ic('report', 22)}<span><b>Laporan aktiviti (OPR)</b><small>One Page Report dengan 4 foto, siap PDF satu muka surat dalam Folder 10</small></span></button>
       ${a.su ? `<button data-act="borangTugasan">${ic('clip', 22)}<span><b>Tetapkan dokumen wajib</b><small>Jejak penghantaran RPT, borang transit dan lain-lain</small></span></button>` : ''}</div>`);
   },
   borangMuatNaik: el => {
@@ -2019,6 +2104,7 @@ const ACT = {
     if (!await sahkan('Padam fail ini?', `"${esc(f.tajuk)}" akan dipindahkan ke tong sampah dan disimpan selama 30 hari. Ketua Panitia boleh memulihkannya.`, 'Padam', true)) return;
     const pid = S.panitiaId, d = MEM[pid];
     d.fail = d.fail.filter(x => x.id !== f.id);
+    if (d.laporan) d.laporan = d.laporan.filter(r => r.failId !== f.id);
     d.tong.unshift(Object.assign({}, f, { status: 'TRASH', dipadamPada: new Date().toISOString(), dipadamOleh: S.user.nama }));
     simpanLS(pid); kemasKiraan(pid); renderSemasa();
     toast('Fail dipindahkan ke tong sampah');
@@ -2574,6 +2660,332 @@ const INP = {
     const n = $('[data-inp="cariPengguna"]'); if (n) { n.focus(); n.setSelectionRange(pos, pos); }
   }
 };
+
+
+/* =====================================================================
+   LAPORAN AKTIVITI — ONE PAGE REPORT (OPR)
+   ===================================================================== */
+const KATEGORI_OPR = ['LAPORAN', 'PROGRAM', 'PERTANDINGAN', 'KURSUS / LDP', 'MESYUARAT', 'BENGKEL', 'LAWATAN', 'LAIN-LAIN'];
+const BULAN_PENDEK = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
+const OPRCACHE = {};
+const tarikhLap = r => String(r.tarikhMula || r.tarikh || r.dicipta || '');
+const tahunLap = r => Number(tarikhLap(r).slice(0, 4)) || 0;
+const bulanLap = r => Number(tarikhLap(r).slice(5, 7)) || 0;
+const ayatTarikh = t => String(t || '').toLowerCase().replace(/(^|\s)([a-z])/g, (m, a, b) => a + b.toUpperCase());
+const tarikhDMY = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? `${+m[3]}/${+m[2]}/${m[1]}` : ''; };
+const senaraiLap = d => (d && d.laporan) || [];
+
+function viewLaporan() { pastikanDetail(renderLaporan); }
+
+function lapTapis(d) {
+  const q = (S.lapCari || '').toLowerCase();
+  return senaraiLap(d).filter(r => (r._pending || !S.lapTahun || String(tahunLap(r)) === S.lapTahun) && (!S.lapKat || r.kategori === S.lapKat) &&
+    (!q || `${r.tajuk} ${r.tempat || ''} ${r.disediakanOleh || ''} ${r.kategori || ''}`.toLowerCase().includes(q)));
+}
+
+function lapRingkasHTML(d) {
+  const L = senaraiLap(d).filter(r => !r._pending), th = new Date().getFullYear();
+  const n = L.filter(r => tahunLap(r) === th).length;
+  return `<section class="blok"><div class="blok-kepala"><h3>Laporan Aktiviti</h3><span class="muted">${n} laporan tahun ${th}</span></div>
+    ${L.length ? `<ul class="lap-mini">${L.slice(0, 3).map(r => `<li><button data-act="lihatOPR" data-id="${r.id}"><span class="lap-gambar kecil">${r.lakaranId ? `<img data-img="${esc(r.lakaranId)}" alt="">` : ic('image', 18)}</span>
+      <span><b>${esc(r.tajuk)}</b><small>${esc(r.kategori)}, ${esc(ayatTarikh(r.tarikhProgram))}</small></span></button></li>`).join('')}</ul>`
+      : '<p class="kosong-kecil">Belum ada laporan aktiviti. Sediakan One Page Report (OPR) pertama panitia anda.</p>'}
+    <div class="baris-btn" style="margin-top:10px">${S.pemantau ? '' : `<button class="btn kecil utama" data-act="borangOPR">${ic('plus', 16)}Laporan baharu</button>`}
+      <button class="btn kecil" data-act="keLaporan">${ic('report', 16)}Semua laporan</button><button class="btn kecil" data-act="keLaporan" data-t="analisis">${ic('dash', 16)}Analisis</button></div></section>`;
+}
+
+function renderLaporan() {
+  const d = S.detail, ro = !!S.pemantau, L = senaraiLap(d);
+  tajuk('Laporan Aktiviti');
+  const kini = new Date().getFullYear();
+  if (S.lapTahun == null) S.lapTahun = L.some(r => tahunLap(r) === kini) || !L.length ? String(kini) : '';
+  const tahun = [...new Set(L.map(tahunLap).filter(Boolean).concat(kini))].sort((a, b) => b - a);
+  const kat = [...new Set(L.map(r => r.kategori).filter(Boolean))].sort();
+  const tab = S.lapTab || 'senarai';
+  $('#main').innerHTML = `
+    <button class="btn kecil" data-act="${ro ? 'tutupLapPemantau' : 'keDash'}" style="margin-bottom:12px">${ic('back', 16)}${ro ? 'Kembali' : 'Papan pemuka panitia'}</button>
+    <section class="lap-kepala"><div><small>Panitia ${esc(d.panitia.nama)}</small><h2>Laporan Aktiviti</h2><p>One Page Report (OPR) program dan aktiviti panitia</p></div>
+      ${ro ? '' : `<button class="btn kuning" data-act="borangOPR">${ic('plus', 18)}Laporan baharu</button>`}</section>
+    <div class="seg" role="tablist" style="margin:14px 0 12px">${[['senarai', 'Senarai laporan'], ['analisis', 'Analisis']].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" data-act="lapTab" data-t="${k}">${l}</button>`).join('')}</div>
+    <div class="lap-penapis">
+      <select data-chg="lapTahun" aria-label="Tahun"><option value="">Semua tahun</option>${tahun.map(t => `<option ${String(t) === S.lapTahun ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      ${tab === 'senarai' ? `<select data-chg="lapKat" aria-label="Kategori"><option value="">Semua kategori</option>${kat.map(k => `<option ${k === S.lapKat ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select>` : ''}
+    </div>
+    ${tab === 'senarai'
+      ? `${L.length > 4 ? `<label class="cari">${ic('search', 18)}<input type="search" data-inp="cariLap" value="${esc(S.lapCari || '')}" placeholder="Cari tajuk, tempat atau nama guru" aria-label="Cari laporan"></label>` : ''}<div id="lapSenarai">${lapSenaraiHTML(d)}</div>`
+      : lapAnalisisHTML(d)}`;
+  hydrateImgs();
+}
+
+function lapSenaraiHTML(d) {
+  const L = lapTapis(d);
+  if (!L.length) return `<div class="blok">${kosongHTML('report', senaraiLap(d).length ? 'Tiada laporan sepadan dengan penapis.' : 'Belum ada laporan aktiviti.' + (S.pemantau ? '' : ' Tekan "Laporan baharu" untuk menyediakan OPR pertama.'))}</div>`;
+  return `<p class="muted" style="margin:0 4px 8px">${L.length} laporan</p><div class="lap-senarai">${L.map(r => r._pending
+    ? `<div class="lap-kad menunggu"><span class="lap-gambar"><span class="pusing"></span></span><span class="lap-isi"><span class="chip">${esc(r.kategori || 'LAPORAN')}</span><b>${esc(r.tajuk)}</b><small>Sedang menjana OPR…</small></span></div>`
+    : `<button class="lap-kad" data-act="lihatOPR" data-id="${r.id}"><span class="lap-gambar">${r.lakaranId ? `<img data-img="${esc(r.lakaranId)}" alt="">` : ic('image', 26)}</span>
+      <span class="lap-isi"><span class="chip">${esc(r.kategori)}</span><b>${esc(r.tajuk)}</b><small>${ic('calendar', 13)}${esc(ayatTarikh(r.tarikhProgram))}</small>
+      ${r.tempat ? `<small>${esc(ayatTarikh(r.tempat))}</small>` : ''}<small class="lap-oleh">Disediakan oleh ${esc(namaPendek(r.disediakanOleh))}</small></span></button>`).join('')}</div>`;
+}
+
+/** Analisis: kad statistik, carta lajur bulanan / tahunan, kategori dan sumbangan ahli (satu siri, satu warna) */
+function lapAnalisisHTML(d) {
+  const semua = senaraiLap(d).filter(r => !r._pending), th = S.lapTahun;
+  const L = semua.filter(r => !th || String(tahunLap(r)) === th);
+  const kini = new Date();
+  if (!L.length) return `<div class="blok">${kosongHTML('dash', th ? `Tiada laporan bagi tahun ${th}.` : 'Belum ada laporan untuk dianalisis.')}</div>`;
+  const ahli = d.ahli || [];
+  const kira = {}; L.forEach(r => { kira[r.disediakanId] = (kira[r.disediakanId] || 0) + 1; });
+  const kat = {}; L.forEach(r => { const k = r.kategori || 'LAIN-LAIN'; kat[k] = (kat[k] || 0) + 1; });
+  const katS = Object.entries(kat).sort((a, b) => b[1] - a[1]);
+  const bulanIni = L.filter(r => tahunLap(r) === kini.getFullYear() && bulanLap(r) === kini.getMonth() + 1).length;
+  const penyumbang = ahli.filter(m => kira[m.id]).length;
+  const tile = (v, l, s) => `<div class="stat-kad"><b>${v}</b><span>${l}</span>${s ? `<small>${s}</small>` : ''}</div>`;
+
+  // Carta lajur: ikut bulan (tahun dipilih) atau ikut tahun (semua tahun)
+  let label, nilai, tajukCarta;
+  if (th) {
+    label = BULAN_PENDEK; nilai = Array(12).fill(0);
+    L.forEach(r => { const m = bulanLap(r); if (m) nilai[m - 1]++; });
+    tajukCarta = `Laporan mengikut bulan, ${th}`;
+  } else {
+    const thn = [...new Set(L.map(tahunLap).filter(Boolean))].sort();
+    label = thn.map(String); nilai = thn.map(t => L.filter(r => tahunLap(r) === t).length);
+    tajukCarta = 'Laporan mengikut tahun';
+  }
+  const maks = Math.max(1, ...nilai);
+  const ringkas = label.map((l, i) => `${l} ${nilai[i]}`).join(', ');
+  const carta = `<section class="blok"><div class="blok-kepala"><h3>${tajukCarta}</h3></div>
+    <div class="carta-bar" style="--n:${label.length}" role="img" aria-label="${esc(tajukCarta)}: ${esc(ringkas)}">${nilai.map((n, i) =>
+      `<div class="cb-kol" data-tip="${esc(label[i])}${th ? ' ' + th : ''}: ${n} laporan"><span class="cb-nilai">${n || ''}</span><span class="cb-bar" style="height:${n ? Math.max(3, n / maks * 88) : 0}%"></span></div>`).join('')}</div>
+    <div class="cb-paksi" style="--n:${label.length}" aria-hidden="true">${label.map(l => `<span>${esc(l)}</span>`).join('')}</div>
+    <details class="jadual-data"><summary>Lihat jadual data</summary><table class="semak"><thead><tr><th>${th ? 'Bulan' : 'Tahun'}</th><th>Bilangan laporan</th></tr></thead>
+      <tbody>${label.map((l, i) => `<tr><td>${esc(l)}</td><td>${nilai[i]}</td></tr>`).join('')}</tbody></table></details></section>`;
+
+  const maksK = Math.max(1, ...katS.map(x => x[1]));
+  const kategori = `<section class="blok"><div class="blok-kepala"><h3>Mengikut kategori</h3></div>
+    <ul class="hbar">${katS.map(([k, n]) => `<li data-tip="${esc(k)}: ${n} laporan (${Math.round(n / L.length * 100)}%)"><span class="hb-l">${esc(ayatTarikh(k))}</span><span class="hb-trek"><span class="hb-bar" style="width:${n / maksK * 100}%"></span></span><b>${n}</b></li>`).join('')}</ul></section>`;
+
+  const senaraiAhli = ahli.map(m => ({ m, n: kira[m.id] || 0 })).sort((a, b) => b.n - a.n || a.m.nama.localeCompare(b.m.nama));
+  const maksA = Math.max(1, ...senaraiAhli.map(x => x.n));
+  const belum = senaraiAhli.filter(x => !x.n);
+  const sumbangan = `<section class="blok"><div class="blok-kepala"><h3>Sumbangan ahli</h3><span class="muted">${penyumbang}/${ahli.length} ahli menyediakan laporan</span></div>
+    <ul class="hbar ahli-bar">${senaraiAhli.map(({ m, n }) => `<li data-tip="${esc(m.nama)}: ${n} laporan">${avatar(m, 30)}<span class="hb-l">${esc(namaPendek(m.nama))}</span><span class="hb-trek"><span class="hb-bar ${n ? '' : 'sifar'}" style="width:${n ? n / maksA * 100 : 0}%"></span></span><b>${n}</b></li>`).join('')}</ul>
+    ${belum.length && belum.length < ahli.length ? `<p class="nota" style="margin-top:10px">Belum menyediakan laporan${th ? ' tahun ' + th : ''}: ${esc(belum.map(x => namaPendek(x.m.nama)).join(', '))}.</p>` : ''}</section>`;
+
+  const katTerbanyak = katS[0] && katS[0][1] > ((katS[1] || [])[1] || 0) ? katS[0] : null;
+  return `<div class="stat-grid">
+      ${tile(L.length, th ? `Laporan tahun ${th}` : 'Jumlah laporan')}
+      ${tile(th && Number(th) === kini.getFullYear() ? bulanIni : (th ? (L.length / 12).toFixed(1) : new Set(L.map(tahunLap)).size), th && Number(th) === kini.getFullYear() ? 'Bulan ini' : (th ? 'Purata sebulan' : 'Tahun direkod'))}
+      ${tile(`${penyumbang}<span style="font-size:15px;color:var(--muted)">/${ahli.length}</span>`, 'Ahli menyumbang')}
+      ${tile(L.reduce((t, r) => t + (r.bilFoto || 0), 0), 'Foto aktiviti', katTerbanyak ? `Kategori utama: ${ayatTarikh(katTerbanyak[0])}` : '')}
+    </div>${carta}${kategori}${sumbangan}`;
+}
+
+/* ---------- Paparan OPR dalam aplikasi ---------- */
+function oprHTML(x) {
+  const teks = s => esc(s || '-').replace(/\n/g, '<br>');
+  return `<article class="opr"><header><small>${esc(String(x.sekolah || '').toUpperCase())}</small><b>LAPORAN AKTIVITI PANITIA ${esc(String(x.panitia || '').toUpperCase())}</b><span>ONE PAGE REPORT (OPR)</span></header>
+    <dl class="opr-info">
+      <div><dt>Panitia</dt><dd>PANITIA ${esc(String(x.panitia || '').toUpperCase())}</dd></div>
+      <div><dt>Tarikh</dt><dd>${esc(tarikhDMY(x.tarikh))}</dd></div>
+      <div><dt>Kategori</dt><dd>${esc(x.kategori)}</dd></div>
+      <div><dt>Tarikh program</dt><dd>${esc(x.tarikhProgram)}</dd></div>
+      <div class="penuh"><dt>Tajuk bahan</dt><dd><b>${esc(String(x.tajuk || '').toUpperCase())}</b></dd></div>
+      <div class="penuh"><dt>Tempat / lokasi</dt><dd>${esc(String(x.tempat || '').toUpperCase())}</dd></div>
+      <div class="penuh"><dt>Objektif</dt><dd>${teks(x.objektif)}</dd></div>
+      <div class="penuh"><dt>Tentatif / aktiviti</dt><dd>${teks(x.tentatif)}</dd></div>
+      <div class="penuh"><dt>Catatan / impak</dt><dd>${teks(x.catatan)}</dd></div>
+    </dl>
+    <div class="opr-foto">${(x.fotoIds || []).map((id, i) => id ? `<figure><img data-img="${esc(id)}" alt="Foto ${i + 1}: ${esc(x.tajuk)}" data-act="zoomImg"><figcaption>FOTO ${i + 1}</figcaption></figure>` : '').join('')}</div>
+    <p class="opr-oleh"><small>Disediakan oleh</small><b>${esc(String(x.disediakanOleh || '').toUpperCase())}</b></p></article>`;
+}
+function oprAksiHTML(r, x) {
+  return `<button class="btn utama" data-act="muatTurun" data-id="${r.failId}">${ic('download', 18)}Muat turun PDF</button>
+    <button class="btn" data-act="pratonton" data-id="${r.failId}">${ic('eye', 18)}Lihat PDF</button>
+    ${S.pemantau ? '' : `<button class="btn" data-act="kongsiOPR" data-id="${r.id}">${ic('share', 18)}Kongsi</button>`}
+    ${x && x.bolehUbah ? `<button class="btn" data-act="ubahOPR" data-id="${r.id}">${ic('edit', 18)}Ubah</button><button class="btn bahaya" data-act="padamOPR" data-id="${r.id}">${ic('trash', 18)}Padam</button>` : ''}`;
+}
+async function lihatOPR(id) {
+  const r = senaraiLap(S.detail).find(x => x.id === id); if (!r) return;
+  const c = OPRCACHE[id];
+  const w = bukaSheet(`<div class="prev-kepala"><h3>${esc(r.tajuk)}</h3><button class="ib" data-act="tutupSheet" aria-label="Tutup">${ic('x')}</button></div>
+    <div class="prev-badan opr-badan" id="oprBadan">${c ? oprHTML(c) : '<p class="muted" style="padding:16px">Memuatkan laporan…</p>'}</div>
+    <div class="prev-aksi" id="oprAksi">${oprAksiHTML(r, c)}</div>`, { penuh: true });
+  try {
+    const x = await call('laporanDetail', { id, pemantau: S.pemantau || undefined }, { senyap: !!c });
+    OPRCACHE[id] = x;
+    if (!document.body.contains(w)) return;
+    $('#oprBadan').innerHTML = oprHTML(x); $('#oprAksi').innerHTML = oprAksiHTML(r, x);
+    hydrateImgs(w);
+  } catch (e) {
+    const b = $('#oprBadan');
+    if (b && !c) b.innerHTML = `<div class="prev-tiada"><p>${esc(e.message)}</p></div>`; else toast(e.message, 'ralat');
+  }
+}
+
+/* ---------- Borang OPR ---------- */
+function slotOPRHTML(i) {
+  return `<div class="slot-opr"><label class="slot" data-slot="${i}"><input type="file" accept="image/*" data-chg="slotOPR" data-i="${i}" hidden><span>${ic('image', 22)}Foto ${i + 1}</span></label>
+    <button type="button" class="slot-buang" data-act="buangFotoOPR" data-i="${i}" aria-label="Buang foto ${i + 1}" hidden>${ic('x', 14)}</button></div>`;
+}
+function kemasSlotOPR(i) {
+  const g = S.opr && S.opr.gambar[i], slot = $(`.slot-opr .slot[data-slot="${i}"]`);
+  if (!slot) return;
+  const src = g ? (g.data || IMG[g.id] || '') : '';
+  slot.style.backgroundImage = src ? `url(${src})` : '';
+  slot.classList.toggle('ada', !!g);
+  const b = slot.parentElement.querySelector('.slot-buang'); if (b) b.hidden = !g;
+}
+function borangOPR(x) {
+  if (!perluPanitia()) return;
+  const t = new Date(), hariIni = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
+  S.opr = { id: x ? x.id : '', gambar: [0, 1, 2, 3].map(i => x && x.fotoIds && x.fotoIds[i] ? { id: x.fotoIds[i] } : null), pertamaAsal: x ? (x.fotoIds || []).find(Boolean) || '' : '' };
+  const v = k => esc(x ? x[k] || '' : '');
+  const tempatLalai = esc(String(S.detail.sekolah || (S.data && S.data.tetapan.namaSekolah) || '').toUpperCase());
+  bukaSheet(`<h3 class="sheet-t">${x ? 'Ubah laporan aktiviti' : 'Laporan aktiviti baharu'}</h3>
+    <p class="sheet-p">Dijana sebagai One Page Report (OPR), PDF satu muka surat A4, dan disimpan dalam Folder 10 Panitia ${esc(S.detail.panitia.nama)}.</p>
+    <form class="borang" data-sub="hantarOPR">
+      <div class="dua"><label class="medan"><span>Kategori</span><input name="kategori" list="senaraiKatOPR" value="${x ? v('kategori') : 'LAPORAN'}" maxlength="40" required></label>
+        <label class="medan"><span>Tarikh laporan</span><input type="date" name="tarikh" value="${x ? v('tarikh') : hariIni}" required></label></div>
+      <datalist id="senaraiKatOPR">${KATEGORI_OPR.map(k => `<option value="${k}">`).join('')}</datalist>
+      <label class="medan"><span>Tajuk bahan / program</span><input name="tajuk" value="${v('tajuk')}" maxlength="200" required placeholder="cth. Bulan Panitia STEM (Sains) 2026"></label>
+      <div class="dua"><label class="medan"><span>Tarikh mula program</span><input type="date" name="tarikhMula" value="${v('tarikhMula')}" required></label>
+        <label class="medan"><span>Tarikh tamat <i>(jika lebih sehari)</i></span><input type="date" name="tarikhTamat" value="${v('tarikhTamat')}"></label></div>
+      <label class="medan"><span>Tempat / lokasi</span><input name="tempat" value="${x ? v('tempat') : tempatLalai}" maxlength="200" required></label>
+      <label class="medan"><span>Objektif</span><textarea name="objektif" rows="4" maxlength="1200" placeholder="1. Meningkatkan minat murid terhadap bidang STEM.&#10;2. …">${v('objektif')}</textarea></label>
+      <label class="medan"><span>Tentatif / aktiviti</span><textarea name="tentatif" rows="6" maxlength="1800" placeholder="Senaraikan aktiviti, satu baris bagi setiap aktiviti.&#10;• Bina Robot Lego&#10;• Paper Aero Challenge">${v('tentatif')}</textarea></label>
+      <label class="medan"><span>Catatan / impak <i>(pilihan)</i></span><textarea name="catatan" rows="3" maxlength="600">${v('catatan')}</textarea></label>
+      <div class="medan"><span>Foto aktiviti <i>(1 hingga 4)</i></span><div class="slot-grid">${[0, 1, 2, 3].map(slotOPRHTML).join('')}</div></div>
+      <label class="medan"><span>Disediakan oleh</span><input name="disediakanOleh" value="${x ? v('disediakanOleh') : esc(S.user.nama)}" maxlength="120" required></label>
+      ${x ? '' : pilihTugasanHTML('')}
+      <p class="nota">Teks yang panjang dikecilkan secara automatik supaya laporan muat satu muka surat A4.</p>
+      <button class="btn utama" type="submit">${ic('report', 18)}${x ? 'Simpan dan jana semula OPR' : 'Jana OPR'}</button></form>`, { fokus: !x });
+  [0, 1, 2, 3].forEach(kemasSlotOPR);
+  const ids = S.opr.gambar.filter(Boolean).map(g => g.id);
+  if (ids.length) muatImej(ids).then(() => [0, 1, 2, 3].forEach(kemasSlotOPR));
+}
+function lakaranDari(src) {
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => {
+      const c = document.createElement('canvas'); c.width = 360; c.height = 270;
+      const x = c.getContext('2d'), sr = im.width / im.height, dr = 4 / 3;
+      let sw, sh, sx, sy;
+      if (sr > dr) { sh = im.height; sw = sh * dr; sx = (im.width - sw) / 2; sy = 0; } else { sw = im.width; sh = sw / dr; sx = 0; sy = (im.height - sh) / 2; }
+      x.fillStyle = '#fff'; x.fillRect(0, 0, 360, 270); x.drawImage(im, sx, sy, sw, sh, 0, 0, 360, 270);
+      res(c.toDataURL('image/jpeg', 0.72));
+    };
+    im.onerror = () => res('');
+    im.src = src;
+  });
+}
+/** Jana OPR di latar belakang — pengguna boleh teruskan kerja lain */
+function simpanOPRLatar(data) {
+  const pid = data.panitiaId, d = MEM[pid];
+  const tmp = { id: 'tmp_' + Date.now().toString(36), tajuk: data.tajuk, kategori: data.kategori, tarikhMula: data.tarikhMula, _pending: true };
+  if (d) {
+    d.laporan = d.laporan || [];
+    if (data.id) { const r = d.laporan.find(x => x.id === data.id); if (r) r._pending = true; } else d.laporan.unshift(tmp);
+  }
+  ANTRI.n++; paparAntri(); renderSemasa();
+  toast('OPR sedang dijana. Anda boleh teruskan kerja lain.');
+  call('simpanLaporan', data, { senyap: true, masa: 300000 }).then(r => {
+    const dd = MEM[pid];
+    if (dd) {
+      dd.laporan = (dd.laporan || []).filter(x => x.id !== tmp.id && x.id !== r.laporan.id);
+      dd.laporan.unshift(r.laporan);
+      dd.laporan.sort((a, b) => (tarikhLap(b) > tarikhLap(a) ? 1 : -1));
+      dd.fail = dd.fail.filter(x => x.id !== r.fail.id); dd.fail.unshift(r.fail);
+      simpanLS(pid); kemasKiraan(pid);
+    }
+    delete OPRCACHE[r.laporan.id];
+    toast(data.id ? 'OPR dikemas kini' : 'OPR siap dan disimpan dalam Folder 10');
+  }).catch(e => {
+    const dd = MEM[pid];
+    if (dd) { dd.laporan = (dd.laporan || []).filter(x => x.id !== tmp.id); dd.laporan.forEach(x => { if (x.id === data.id) x._pending = false; }); }
+    toast('OPR gagal dijana: ' + e.message, 'ralat');
+  }).finally(() => { ANTRI.n--; paparAntri(); renderSemasa(); });
+}
+
+/* Tooltip ringan untuk carta (data-tip) */
+(() => {
+  let tip = null;
+  const sorok = () => { if (tip) tip.classList.remove('on'); };
+  document.addEventListener('pointerover', e => {
+    const el = e.target.closest && e.target.closest('[data-tip]');
+    if (!el) return sorok();
+    if (!tip) { tip = document.createElement('div'); tip.className = 'tip'; tip.setAttribute('role', 'tooltip'); document.body.appendChild(tip); }
+    tip.textContent = el.dataset.tip;
+    const r = el.getBoundingClientRect();
+    tip.style.left = Math.min(innerWidth - 8 - tip.offsetWidth, Math.max(8, r.left + r.width / 2 - tip.offsetWidth / 2)) + 'px';
+    tip.style.top = Math.max(8, r.top - tip.offsetHeight - 8) + 'px';
+    tip.classList.add('on');
+  });
+  document.addEventListener('scroll', sorok, true);
+})();
+
+Object.assign(ACT, {
+  borangLaporan: () => borangOPR(),
+  borangOPR: () => borangOPR(),
+  keDash: () => pergi('dash'),
+  keLaporan: el => {
+    S.lapTab = el.dataset.t || 'senarai';
+    if (S.pemantau) { S.lapPemantau = true; window.scrollTo(0, 0); return renderPemantau(); }
+    pergi('laporan');
+  },
+  tutupLapPemantau: () => { S.lapPemantau = false; window.scrollTo(0, 0); renderPemantau(); },
+  lapTab: el => { S.lapTab = el.dataset.t; renderLaporan(); },
+  lihatOPR: el => lihatOPR(el.dataset.id),
+  ubahOPR: el => { const x = OPRCACHE[el.dataset.id]; if (!x) return; tutupSheet(); borangOPR(x); },
+  padamOPR: async el => {
+    if (!await sahkan('Padam laporan ini?', 'Laporan dibuang daripada senarai dan PDF dipindahkan ke tong sampah. Ketua Panitia boleh memulihkannya dalam tempoh 30 hari.', 'Padam', true)) return;
+    const pid = S.panitiaId, d = MEM[pid] || S.detail, id = el.dataset.id;
+    const r = senaraiLap(d).find(x => x.id === id);
+    d.laporan = senaraiLap(d).filter(x => x.id !== id);
+    const f = r && d.fail.find(x => x.id === r.failId);
+    if (f) { d.fail = d.fail.filter(x => x !== f); if (d.akses.urus) d.tong.unshift(Object.assign({}, f, { status: 'TRASH', dipadamPada: new Date().toISOString(), dipadamOleh: S.user.nama })); }
+    simpanLS(pid); kemasKiraan(pid); tutupSheet(); renderSemasa(); toast('Laporan dipadam');
+    antri('padamLaporan', { id }, 'Padam laporan ' + (r ? `"${r.tajuk}"` : ''));
+  },
+  kongsiOPR: async el => {
+    const r = senaraiLap(S.detail).find(x => x.id === el.dataset.id); if (!r) return;
+    const f = S.detail.fail.find(x => x.id === r.failId);
+    const teks = `Laporan Aktiviti Panitia ${S.detail.panitia.nama}\n${r.tajuk}\n${ayatTarikh(r.tarikhProgram)}${r.tempat ? ', ' + ayatTarikh(r.tempat) : ''}${f && f.url ? '\n' + f.url : ''}`;
+    try { await navigator.share({ title: r.tajuk, text: teks }); } catch (e) { if (e && e.name === 'AbortError') return; salin(teks, 'Maklumat laporan disalin'); }
+  },
+  buangFotoOPR: el => { if (S.opr) { S.opr.gambar[Number(el.dataset.i)] = null; kemasSlotOPR(Number(el.dataset.i)); } }
+});
+Object.assign(SUB, {
+  hantarOPR: async f => {
+    const o = S.opr; if (!o) return;
+    if (!o.gambar.some(Boolean)) return toast('Pilih sekurang-kurangnya satu foto aktiviti.', 'ralat');
+    const val = k => (f[k] ? f[k].value.trim() : '');
+    const data = {
+      panitiaId: S.panitiaId, id: o.id || undefined, kategori: val('kategori').toUpperCase(), tarikh: val('tarikh'), tajuk: val('tajuk'),
+      tarikhMula: val('tarikhMula'), tarikhTamat: val('tarikhTamat'), tempat: val('tempat'), objektif: val('objektif'), tentatif: val('tentatif'),
+      catatan: val('catatan'), disediakanOleh: val('disediakanOleh'), tugasanId: val('tugasanId'),
+      gambar: o.gambar.map(x => (x ? (x.data ? { data: x.data } : { id: x.id }) : null))
+    };
+    if (data.tarikhTamat && data.tarikhTamat < data.tarikhMula) return toast('Tarikh tamat mesti sama atau selepas tarikh mula.', 'ralat');
+    const pertama = o.gambar.find(Boolean);
+    if (pertama.data || pertama.id !== o.pertamaAsal) { const src = pertama.data || IMG[pertama.id]; if (src) data.lakaran = await lakaranDari(src); }
+    tutupSheet(); S.opr = null;
+    simpanOPRLatar(data);
+  }
+});
+Object.assign(CHG, {
+  lapTahun: el => { S.lapTahun = el.value; renderLaporan(); },
+  lapKat: el => { S.lapKat = el.value; renderLaporan(); },
+  slotOPR: async el => {
+    const file = el.files[0]; if (!file || !S.opr) return;
+    const i = Number(el.dataset.i);
+    try { S.opr.gambar[i] = { data: await gambarKe(file, 1000, 750, 0.8) }; kemasSlotOPR(i); } catch (e) { toast(e.message, 'ralat'); }
+    el.value = '';
+  }
+});
+Object.assign(INP, {
+  cariLap: el => { S.lapCari = el.value; $('#lapSenarai').innerHTML = lapSenaraiHTML(S.detail); hydrateImgs(); }
+});
 
 /* ---------- Pendengar global ---------- */
 document.addEventListener('click', e => {

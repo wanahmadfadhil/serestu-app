@@ -2,7 +2,7 @@
  * =====================================================================
  *  e-PANITIA — Sistem Pengurusan Panitia Sekolah Rendah
  *  Backend Google Apps Script (Google Sheets + Google Drive)
- *  Versi 1.6.1
+ *  Versi 1.7.0
  * =====================================================================
  *
  *  CARA PASANG
@@ -36,7 +36,7 @@
  * =====================================================================
  */
 
-const APP_VERSION = '1.6.1';
+const APP_VERSION = '1.7.0';
 const KATA_LALUAN_LALAI = '12345678';
 const SESI_HARI = 7;
 const TONG_HARI = 30;
@@ -60,8 +60,14 @@ const SCHEMA = {
   Tugasan:  ['id', 'panitiaId', 'tajuk', 'folderNo', 'tarikhAkhir', 'diciptaOleh', 'dicipta'],
   Pemantau: ['id', 'panitiaId', 'kod', 'hash', 'salt', 'label', 'tamat', 'diciptaOleh', 'dicipta', 'status'],
   Sesi:     ['token', 'userId', 'tamat', 'dicipta'],
-  Log:      ['id', 'masa', 'userId', 'nama', 'panitiaId', 'folderNo', 'tindakan', 'butiran']
+  Log:      ['id', 'masa', 'userId', 'nama', 'panitiaId', 'folderNo', 'tindakan', 'butiran'],
+  Laporan:  ['id', 'panitiaId', 'tarikh', 'kategori', 'tajuk', 'tarikhMula', 'tarikhTamat', 'tarikhProgram', 'tempat',
+             'objektif', 'tentatif', 'catatan', 'fotoIds', 'lakaranId', 'disediakanOleh', 'disediakanId', 'failId', 'driveId',
+             'dicipta', 'dikemaskini', 'status']
 };
+
+const KATEGORI_LAPORAN = ['LAPORAN', 'PROGRAM', 'PERTANDINGAN', 'KURSUS / LDP', 'MESYUARAT', 'BENGKEL', 'LAWATAN', 'LAIN-LAIN'];
+const BULAN_MS = ['JANUARI', 'FEBRUARI', 'MAC', 'APRIL', 'MEI', 'JUN', 'JULAI', 'OGOS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DISEMBER'];
 
 const FOLDER_NAMA = [
   '01 Profil & Organisasi', '02 Perancangan & Takwim', '03 Mesyuarat Panitia',
@@ -289,7 +295,7 @@ function json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 
-const AWAM = ['awam', 'daftar', 'login', 'lupaKataLaluan', 'setSemulaKataLaluan', 'pemantauData', 'imej', 'muatTurun'];
+const AWAM = ['awam', 'daftar', 'login', 'lupaKataLaluan', 'setSemulaKataLaluan', 'pemantauData', 'imej', 'muatTurun', 'laporanDetail'];
 
 function handle_(q) {
   try {
@@ -317,7 +323,7 @@ const ACTIONS = {
   imej, muatTurun, panitiaDetail, simpanCarta, lantikSU, sahkanAhli, calonAhli, tambahAhli, keluarkanAhli, muatNaikFail, tambahPautan, padamFail,
   pulihFail, padamKekal, tambahTugasan, padamTugasan, janaLaporan, eksportCartaPdf, janaPemantau, batalPemantau,
   pemantauData, senaraiPengguna, simpanPanitia, padamPanitia, lantikKP, kemaskiniPengguna, resetKataLaluan,
-  simpanTetapan, luluskanPengguna
+  simpanTetapan, luluskanPengguna, simpanLaporan, laporanDetail, padamLaporan
 };
 
 /* =====================================================================
@@ -1106,6 +1112,11 @@ function imej(q) {
   rows_('Pengguna').forEach(u => { if (u.fotoId) sah[u.fotoId] = 1; });
   const tt = tetapan_();
   ['gbFoto', 'pkFoto', 'sukFoto'].forEach(k => { if (tt[k]) sah[tt[k]] = 1; });
+  rows_('Laporan').forEach(r => {
+    if (r.status !== 'AKTIF') return;
+    if (r.lakaranId) sah[r.lakaranId] = 1;
+    fotoLaporan_(r).forEach(id => { if (id) sah[id] = 1; });
+  });
   const out = {};
   const ids = (q.ids || []).slice(0, 20).filter(id => sah[id]);
   const c = cache_();
@@ -1152,7 +1163,7 @@ function balasAdmin_(q, u) { return _BATCH ? { ok: true } : senaraiPengguna(q, u
 /** ETag = versi semua jadual + pengguna. Jika sama dengan klien, tiada data dihantar. */
 function etag_(u) {
   const g = gens_();
-  return APP_VERSION + '|' + u.id + '|' + ['Tetapan', 'Pengguna', 'Panitia', 'Keahlian', 'Carta', 'Fail', 'Tugasan', 'Pemantau', 'Log'].map(n => g[n]).join('.');
+  return APP_VERSION + '|' + u.id + '|' + ['Tetapan', 'Pengguna', 'Panitia', 'Keahlian', 'Carta', 'Fail', 'Tugasan', 'Pemantau', 'Log', 'Laporan'].map(n => g[n]).join('.');
 }
 
 /** Satu panggilan untuk semua data yang diperlukan skrin: init + butiran setiap panitia pengguna */
@@ -1169,7 +1180,7 @@ function sync(q, u) {
 
 const BOLEH_BATCH = ['kemaskiniProfil', 'simpanCarta', 'lantikSU', 'sahkanAhli', 'tambahAhli', 'keluarkanAhli',
   'padamFail', 'pulihFail', 'padamKekal', 'tambahTugasan', 'padamTugasan', 'batalPemantau',
-  'simpanPanitia', 'padamPanitia', 'lantikKP', 'kemaskiniPengguna', 'simpanTetapan', 'luluskanPengguna'];
+  'simpanPanitia', 'padamPanitia', 'lantikKP', 'kemaskiniPengguna', 'simpanTetapan', 'luluskanPengguna', 'padamLaporan'];
 
 /** Jalankan beberapa perubahan dari outbox klien dalam satu permintaan. ID operasi menghalang hantar berganda. */
 function batch(q, u) {
@@ -1338,6 +1349,7 @@ function panitiaDetail(q, u) {
     tong: a.urus ? failSemua.filter(f => f.status === 'TRASH').map(failPub_) : [],
     tugasan,
     semakan,
+    laporan: senaraiLaporan_(p),
     pemantau: a.urus ? rows_('Pemantau').filter(x => x.panitiaId === p.id && x.status === 'AKTIF' && new Date(x.tamat) > new Date())
       .map(x => ({ id: x.id, kod: x.kod, label: x.label, tamat: x.tamat })) : [],
     log: logTerkini_(400).filter(l => l.panitiaId === p.id && (a.kew || l.folderNo !== '9')).slice(-25).reverse()
@@ -1520,6 +1532,7 @@ function padamFail(q, u) {
   mesti_(a.urus || (f.pemilikId === u.id && a.lihat), 'Hanya pemilik fail atau Ketua Panitia boleh memadam.');
   if (f.folderNo === '9') mesti_(a.kew);
   update_('Fail', f.id, { status: 'TRASH', dipadamPada: now_(), dipadamOleh: u.nama });
+  statusLaporanIkutFail_(f.id, 'AKTIF', 'PADAM');
   log_(u, p.id, f.folderNo, 'PADAM', 'Ke tong sampah: ' + f.tajuk);
   return true;
 }
@@ -1529,6 +1542,7 @@ function pulihFail(q, u) {
   const p = panitia_(f.panitiaId);
   mesti_(akses_(u, p).urus, 'Hanya Ketua Panitia boleh memulihkan fail.');
   update_('Fail', f.id, { status: 'AKTIF', dipadamPada: '', dipadamOleh: '' });
+  statusLaporanIkutFail_(f.id, 'PADAM', 'AKTIF');
   log_(u, p.id, f.folderNo, 'PULIH', f.tajuk);
   return true;
 }
@@ -1540,6 +1554,7 @@ function padamKekal(q, u) {
   mesti_(f.status === 'TRASH', 'Pindahkan fail ke tong sampah dahulu.');
   buangDrive_(f.driveId);
   update_('Fail', f.id, { status: 'KEKAL_PADAM' });
+  statusLaporanIkutFail_(f.id, 'PADAM', 'KEKAL_PADAM');
   log_(u, p.id, f.folderNo, 'PADAM KEKAL', f.tajuk);
   return true;
 }
@@ -1551,6 +1566,7 @@ function bersihkanTong() {
   rows_('Fail').filter(f => f.status === 'TRASH' && new Date(f.dipadamPada).getTime() < had).forEach(f => {
     buangDrive_(f.driveId);
     update_('Fail', f.id, { status: 'KEKAL_PADAM' });
+    statusLaporanIkutFail_(f.id, 'PADAM', 'KEKAL_PADAM');
     log_('Sistem', f.panitiaId, f.folderNo, 'PADAM KEKAL (AUTO)', f.tajuk);
   });
   deleteWhere_('Sesi', s => new Date(s.tamat).getTime() < Date.now());
@@ -1744,6 +1760,7 @@ function pemantauData(q) {
     carta: cartaBina_(p, ahli),
     fail: rows_('Fail').filter(f => f.panitiaId === p.id && f.status === 'AKTIF' && f.folderNo !== '9').map(failPub_)
       .sort((a, b) => (b.dicipta > a.dicipta ? 1 : -1)),
+    laporan: senaraiLaporan_(p),
     tugasan: [], tong: [], menunggu: [], pemantau: [], log: [], semakan: null
   };
 }
@@ -2020,4 +2037,259 @@ function arkibLog() {
   selesai_();
   Logger.log('✅ ' + lama.length + ' rekod log diarkib.');
   return lama.length;
+}
+
+/* =====================================================================
+ *  LAPORAN AKTIVITI — ONE PAGE REPORT (OPR)
+ *  Setiap laporan disimpan dalam jadual Laporan + PDF dalam Folder 10
+ *  (direkod juga dalam jadual Fail supaya boleh dimuat turun / dipadam / dipulih).
+ * ===================================================================== */
+function fotoLaporan_(r) { try { const a = JSON.parse(r.fotoIds || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+
+function laporanPub_(r) {
+  return {
+    id: r.id, panitiaId: r.panitiaId, tarikh: r.tarikh, kategori: r.kategori, tajuk: r.tajuk,
+    tarikhMula: r.tarikhMula, tarikhTamat: r.tarikhTamat, tarikhProgram: r.tarikhProgram, tempat: r.tempat,
+    lakaranId: r.lakaranId, bilFoto: fotoLaporan_(r).filter(Boolean).length, disediakanOleh: r.disediakanOleh,
+    disediakanId: r.disediakanId, failId: r.failId, driveId: r.driveId, dicipta: r.dicipta
+  };
+}
+function senaraiLaporan_(p) {
+  return rows_('Laporan').filter(r => r.panitiaId === p.id && r.status === 'AKTIF').map(laporanPub_)
+    .sort((a, b) => (b.tarikhMula || b.dicipta) > (a.tarikhMula || a.dicipta) ? 1 : -1);
+}
+/** Kemas kini status laporan yang dipautkan kepada fail PDF (padam / pulih / padam kekal melalui Folder 10) */
+function statusLaporanIkutFail_(failId, dari, ke) {
+  rows_('Laporan').filter(r => r.failId === failId && r.status === dari).forEach(r => {
+    update_('Laporan', r.id, { status: ke, dikemaskini: now_() });
+    if (ke === 'KEKAL_PADAM') { fotoLaporan_(r).forEach(buangDrive_); buangDrive_(r.lakaranId); }
+  });
+}
+
+function tarikhSah_(s) { return /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) && !isNaN(Date.parse(s + 'T00:00:00Z')) ? String(s) : ''; }
+/** "6 - 31 JULAI 2026", "28 JUN - 3 JULAI 2026", "9 SEPTEMBER 2026" */
+function julatTarikh_(mula, tamat) {
+  const p = x => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(x || ''); return m ? { y: +m[1], m: +m[2], d: +m[3] } : null; };
+  const a = p(mula), b = p(tamat);
+  if (!a) return '';
+  const penuh = x => x.d + ' ' + BULAN_MS[x.m - 1] + ' ' + x.y;
+  if (!b || mula === tamat) return penuh(a);
+  if (a.y === b.y && a.m === b.m) return a.d + ' - ' + b.d + ' ' + BULAN_MS[a.m - 1] + ' ' + a.y;
+  if (a.y === b.y) return a.d + ' ' + BULAN_MS[a.m - 1] + ' - ' + penuh(b);
+  return penuh(a) + ' - ' + penuh(b);
+}
+function tarikhDMY_(iso) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] : ''; }
+
+/** Folder Drive "Foto Laporan" di dalam Folder 10 panitia (ID disimpan dalam peta subFolder, kunci "fl") */
+function folderFotoLaporan_(p) {
+  const induk = folderPanitia_(p, '10');
+  let peta = petaFolder_(rows_('Panitia').find(x => x.id === p.id) || p);
+  if (peta.fl) { try { return DriveApp.getFolderById(peta.fl); } catch (e) { /* cipta semula */ } }
+  kunci_();
+  const segar = rows_('Panitia').find(x => x.id === p.id) || p;
+  peta = petaFolder_(segar);
+  if (peta.fl) { try { return DriveApp.getFolderById(peta.fl); } catch (e) { /* */ } }
+  const it = induk.getFoldersByName('Foto Laporan');
+  const f = it.hasNext() ? it.next() : induk.createFolder('Foto Laporan');
+  peta.fl = f.getId();
+  update_('Panitia', p.id, { subFolder: JSON.stringify(peta) });
+  return f;
+}
+
+function simpanLaporan(q, u) {
+  const p = panitia_(q.panitiaId);
+  const a = akses_(u, p);
+  mesti_(a.lihat, 'Anda bukan ahli panitia ini.');
+  let lama = null;
+  if (q.id) {
+    lama = rows_('Laporan').find(x => x.id === q.id && x.panitiaId === p.id && x.status === 'AKTIF');
+    mesti_(lama, 'Laporan tidak dijumpai.');
+    mesti_(lama.disediakanId === u.id || a.su, 'Hanya penyedia laporan, Ketua Panitia atau Setiausaha boleh mengubah laporan ini.');
+  }
+  const t = tetapan_();
+  const hariIni = Utilities.formatDate(new Date(), ZON, 'yyyy-MM-dd');
+  const d = {
+    tarikh: tarikhSah_(q.tarikh) || hariIni,
+    kategori: bersih_(q.kategori, 40).toUpperCase() || 'LAPORAN',
+    tajuk: bersih_(q.tajuk, 200),
+    tarikhMula: tarikhSah_(q.tarikhMula),
+    tarikhTamat: tarikhSah_(q.tarikhTamat),
+    tempat: bersih_(q.tempat, 200) || String(t.namaSekolah || ''),
+    objektif: bersih_(q.objektif, 1200),
+    tentatif: bersih_(q.tentatif, 1800),
+    catatan: bersih_(q.catatan, 600),
+    disediakanOleh: bersih_(q.disediakanOleh, 120) || u.nama
+  };
+  mesti_(d.tajuk, 'Isi tajuk program / bahan.');
+  mesti_(d.tarikhMula, 'Isi tarikh program.');
+  if (d.tarikhTamat && d.tarikhTamat < d.tarikhMula) d.tarikhTamat = '';
+  d.tarikhProgram = julatTarikh_(d.tarikhMula, d.tarikhTamat);
+
+  // Gambar: [ {data} baharu | {id} dikekalkan | null ] x 4
+  const fotoLama = lama ? fotoLaporan_(lama) : [];
+  const g = (Array.isArray(q.gambar) ? q.gambar : []).slice(0, 4);
+  while (g.length < 4) g.push(null);
+  g.forEach(x => {
+    if (x && x.data) {
+      mesti_(/^data:image\/(jpeg|png);base64,/.test(x.data), 'Format gambar tidak sah.');
+      mesti_(saizB64_(x.data) < 3 * 1048576, 'Gambar terlalu besar.');
+    } else if (x && x.id) mesti_(fotoLama.indexOf(x.id) >= 0, 'Gambar asal tidak dijumpai.');
+  });
+  mesti_(g.some(x => x && (x.data || x.id)), 'Pilih sekurang-kurangnya satu foto aktiviti.');
+
+  const id = lama ? lama.id : uid_();
+  const folderFoto = folderFotoLaporan_(p);
+  const fotoIds = [], fotoData = [];
+  g.forEach((x, i) => {
+    if (x && x.data) {
+      const f = simpanBlob_(folderFoto, x.data, 'image/jpeg', 'OPR_' + id + '_foto' + (i + 1) + '_' + Date.now() + '.jpg');
+      fotoIds.push(f.getId()); fotoData.push(x.data);
+      const durl = 'data:image/jpeg;base64,' + String(x.data).replace(/^data:[^,]*,/, '');
+      if (durl.length < 95000) try { cache_().put('IMG_' + f.getId(), durl, CACHE_TTL); } catch (e) { /* */ }
+    } else if (x && x.id) {
+      fotoIds.push(x.id);
+      let durl = '';
+      try { const b = DriveApp.getFileById(x.id).getBlob(); durl = 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes()); } catch (e) { /* hilang */ }
+      fotoData.push(durl);
+    } else { fotoIds.push(''); fotoData.push(''); }
+  });
+  let lakaranId = lama ? lama.lakaranId : '';
+  if (q.lakaran && /^data:image\/jpeg;base64,/.test(q.lakaran) && saizB64_(q.lakaran) < 300000) {
+    const lk = simpanBlob_(folderFoto, q.lakaran, 'image/jpeg', 'OPR_' + id + '_lakaran_' + Date.now() + '.jpg');
+    if (lakaranId) buangDrive_(lakaranId);
+    lakaranId = lk.getId();
+    try { cache_().put('IMG_' + lakaranId, q.lakaran, CACHE_TTL); } catch (e) { /* */ }
+  }
+
+  // Jana PDF OPR
+  const html = oprHtml_(p, d, fotoData, t);
+  const namaFail = ('OPR ' + d.tajuk + ' (' + d.tarikhProgram + ')').replace(/[\\/:*?"<>|]/g, '-').slice(0, 150) + '.pdf';
+  const pdf = Utilities.newBlob(html, 'text/html', 'opr.html').getAs('application/pdf').setName(namaFail);
+  const file = folderPanitia_(p, '10').createFile(pdf);
+  const failMeta = {
+    tajuk: 'OPR: ' + d.tajuk, penerangan: d.kategori + ' — ' + d.tarikhProgram + (d.tempat ? ', ' + d.tempat : ''),
+    url: file.getUrl(), driveId: file.getId(), mime: 'application/pdf', saiz: pdf.getBytes().length
+  };
+  let failRec = lama && lama.failId ? rows_('Fail').find(f => f.id === lama.failId && f.status !== 'KEKAL_PADAM') : null;
+  if (failRec) {
+    buangDrive_(failRec.driveId);
+    failRec = update_('Fail', failRec.id, Object.assign(failMeta, { status: 'AKTIF', dipadamPada: '', dipadamOleh: '' }));
+  } else {
+    failRec = Object.assign({
+      id: uid_(), panitiaId: p.id, folderNo: '10', jenis: 'DRIVE', tugasanId: tugasanSah_(p, q.tugasanId),
+      pemilikId: u.id, pemilikNama: u.nama, dicipta: now_(), status: 'AKTIF'
+    }, failMeta);
+    insert_('Fail', failRec);
+  }
+  const rec = Object.assign({}, d, {
+    id, panitiaId: p.id, fotoIds: JSON.stringify(fotoIds), lakaranId, failId: failRec.id, driveId: file.getId(),
+    disediakanId: lama ? lama.disediakanId : u.id, dicipta: lama ? lama.dicipta : now_(), dikemaskini: now_(), status: 'AKTIF'
+  });
+  if (lama) {
+    update_('Laporan', id, rec);
+    fotoLama.filter(x => x && fotoIds.indexOf(x) < 0).forEach(buangDrive_); // foto yang diganti / dibuang
+  } else {
+    insert_('Laporan', rec);
+  }
+  log_(u, p.id, '10', lama ? 'KEMAS KINI OPR' : 'LAPORAN OPR', d.tajuk);
+  return { laporan: laporanPub_(rec), fail: failPub_(failRec) };
+}
+
+/** Butiran penuh satu laporan (ahli panitia atau pemantau) */
+function laporanDetail(q) {
+  const r = rows_('Laporan').find(x => x.id === q.id && x.status === 'AKTIF');
+  mesti_(r, 'Laporan tidak dijumpai atau telah dipadam.');
+  const p = panitia_(r.panitiaId);
+  let boleh = false;
+  if (q.pemantau) { mesti_(pemantauSah_(q.pemantau).panitiaId === p.id, 'Tiada akses.'); }
+  else {
+    const u = auth_(q.token);
+    const a = akses_(u, p);
+    mesti_(a.lihat, 'Anda bukan ahli panitia ini.');
+    boleh = r.disediakanId === u.id || a.su;
+  }
+  return Object.assign(laporanPub_(r), {
+    objektif: r.objektif, tentatif: r.tentatif, catatan: r.catatan, fotoIds: fotoLaporan_(r),
+    panitia: p.nama, sekolah: tetapan_().namaSekolah, bolehUbah: boleh
+  });
+}
+
+function padamLaporan(q, u) {
+  const r = rows_('Laporan').find(x => x.id === q.id && x.status === 'AKTIF');
+  mesti_(r, 'Laporan tidak dijumpai.');
+  const p = panitia_(r.panitiaId);
+  const a = akses_(u, p);
+  mesti_(a.lihat && (r.disediakanId === u.id || a.su), 'Hanya penyedia laporan, Ketua Panitia atau Setiausaha boleh memadam laporan ini.');
+  update_('Laporan', r.id, { status: 'PADAM', dikemaskini: now_() });
+  const f = r.failId ? rows_('Fail').find(x => x.id === r.failId && x.status === 'AKTIF') : null;
+  if (f) update_('Fail', f.id, { status: 'TRASH', dipadamPada: now_(), dipadamOleh: u.nama });
+  log_(u, p.id, '10', 'PADAM OPR', r.tajuk + ' (PDF ke tong sampah)');
+  return balasDetail_(p.id, u);
+}
+
+/** HTML OPR satu muka surat A4 — saiz huruf & foto dikecilkan automatik mengikut panjang teks */
+function oprHtml_(p, d, foto, t) {
+  // Bajet ketinggian A4 (px @96dpi): ruang cetak ~1039px; simpan margin keselamatan untuk penukar PDF Google
+  const baris = (s, lebar) => String(s || '').split('\n').reduce((n, l) => n + Math.max(1, Math.ceil(l.length / lebar)), 0);
+  const bilFoto = foto.filter(Boolean).length;
+  const barisFoto = Math.max(1, Math.ceil(bilFoto / 2));
+  const TETAP = 335 + (d.tajuk.length > 55 ? 22 : 0) + (d.tempat.length > 60 ? 20 : 0);
+  const tinggiTeks = saiz => {
+    const lebar = Math.round(50 * 10 / saiz);                   // aksara sebaris (separuh lebar)
+    return (Math.max(baris(d.objektif, lebar), baris(d.tentatif, lebar)) + (d.catatan ? baris(d.catatan, lebar * 2) : 1)) * saiz * 1.333 * 1.3;
+  };
+  let fs = 10, ft = 0, sebaris = 2;                              // sebaris = bilangan foto dalam satu baris
+  for (const saiz of [10, 9.5, 9, 8.5, 8, 7.5]) {
+    fs = saiz;
+    ft = Math.floor((970 - TETAP - tinggiTeks(fs)) / barisFoto) - 34; // tinggi setiap foto (grid 2 x 2)
+    if (ft >= 140) break;
+  }
+  if (ft < 115 && 970 - TETAP - tinggiTeks(7) - (bilFoto > 2 ? 154 : 119 * barisFoto) < 0) {
+    // Mod padat: terlalu banyak baris pendek — gabungkan baris dengan " • " supaya kekal satu muka surat
+    const padat = x => String(x || '').split('\n').map(l => l.trim()).filter(Boolean).join('  •  ');
+    d = Object.assign({}, d, { objektif: padat(d.objektif), tentatif: padat(d.tentatif), catatan: padat(d.catatan) });
+    for (const saiz of [9, 8.5, 8, 7.5]) { fs = saiz; ft = Math.floor((970 - TETAP - tinggiTeks(fs)) / barisFoto) - 34; if (ft >= 150) break; }
+  }
+  if (ft < 115 && bilFoto > 2) {
+    // Teks sangat panjang: susun 4 foto dalam satu baris supaya kekal satu muka surat
+    sebaris = 4;
+    for (const saiz of [9, 8.5, 8, 7.5, 7]) { fs = saiz; ft = Math.floor(970 - TETAP - tinggiTeks(fs)) - 34; if (ft >= 115) break; }
+    ft = Math.max(80, Math.min(ft, 120));
+  } else ft = Math.max(85, Math.min(ft, barisFoto === 1 ? 260 : 230));
+  const fw = Math.round(ft * 4 / 3);
+  const B = '1px solid #8fa39a';
+  const teks = s => esc_(s || '-').replace(/\n/g, '<br>');
+  const lbl = (l, extra) => '<td style="width:17%;padding:5px 7px;border:' + B + ';background:#e3eee8;font-weight:bold;font-size:' + (fs - 1) + 'pt;color:#145C43;vertical-align:top' + (extra || '') + '">' + l + '</td>';
+  const val = (v, span, gaya) => '<td' + (span ? ' colspan="' + span + '"' : '') + ' style="padding:5px 7px;border:' + B + ';vertical-align:top;' + (gaya || '') + '">' + v + '</td>';
+
+  const sel = [];
+  foto.forEach((src, i) => {
+    if (!src) return;
+    sel.push('<td style="width:' + (100 / sebaris) + '%;padding:5px;text-align:center;vertical-align:top;border:' + B + '">' +
+      '<img src="' + src + '" style="width:' + fw + 'px;height:' + ft + 'px"><div style="font-size:' + (fs - 1.5) + 'pt;font-weight:bold;color:#145C43;margin-top:3px">FOTO ' + (i + 1) + '</div></td>');
+  });
+  while (sel.length % sebaris) sel.push('<td style="border:' + B + '"></td>');
+  let grid = '';
+  for (let i = 0; i < sel.length; i += sebaris) grid += '<tr>' + sel.slice(i, i + sebaris).join('') + '</tr>';
+
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><style>@page{size:A4;margin:11mm 12mm}body{font-family:Arial,sans-serif;font-size:' + fs + 'pt;color:#1c2b39;margin:0}table{border-collapse:collapse;width:100%}td{font-size:' + fs + 'pt}</style></head><body>' +
+    '<table style="margin-bottom:8px"><tr><td style="background:#145C43;color:#fff;padding:9px 12px;text-align:center">' +
+    '<div style="font-size:10.5pt;font-weight:bold;letter-spacing:.5px">' + esc_(String(t.namaSekolah || '').toUpperCase()) + '</div>' +
+    '<div style="font-size:15pt;font-weight:bold;margin-top:2px">LAPORAN AKTIVITI PANITIA ' + esc_(p.nama.toUpperCase()) + '</div>' +
+    '<div style="font-size:9pt;color:#F2B705;font-weight:bold;letter-spacing:2px;margin-top:2px">ONE PAGE REPORT (OPR)</div></td></tr></table>' +
+    '<table>' +
+    '<tr>' + lbl('PANITIA') + val('PANITIA ' + esc_(p.nama.toUpperCase())) + lbl('TARIKH') + val(esc_(tarikhDMY_(d.tarikh)), 0, 'width:22%') + '</tr>' +
+    '<tr>' + lbl('KATEGORI') + val(esc_(d.kategori)) + lbl('TARIKH PROGRAM') + val(esc_(d.tarikhProgram), 0, 'width:22%') + '</tr>' +
+    '<tr>' + lbl('TAJUK BAHAN') + val('<b style="font-size:' + (fs + 1) + 'pt">' + esc_(d.tajuk.toUpperCase()) + '</b>', 3) + '</tr>' +
+    '<tr>' + lbl('TEMPAT / LOKASI') + val(esc_(d.tempat.toUpperCase()), 3) + '</tr></table>' +
+    '<table style="margin-top:6px"><tr>' +
+    '<td style="width:50%;padding:5px 7px;border:' + B + ';background:#e3eee8;font-weight:bold;color:#145C43;font-size:' + (fs - 1) + 'pt">OBJEKTIF</td>' +
+    '<td style="width:50%;padding:5px 7px;border:' + B + ';background:#e3eee8;font-weight:bold;color:#145C43;font-size:' + (fs - 1) + 'pt">TENTATIF / AKTIVITI</td></tr>' +
+    '<tr>' + val(teks(d.objektif), 0, 'width:50%;line-height:1.35') + val(teks(d.tentatif), 0, 'width:50%;line-height:1.35') + '</tr>' +
+    '<tr><td colspan="2" style="padding:5px 7px;border:' + B + '"><b style="color:#145C43;font-size:' + (fs - 1) + 'pt">CATATAN / IMPAK: </b>' + teks(d.catatan) + '</td></tr></table>' +
+    '<table style="margin-top:6px">' + grid + '</table>' +
+    '<table style="margin-top:8px"><tr><td style="width:60%;vertical-align:top;font-size:' + (fs - 0.5) + 'pt">' +
+    '<b style="color:#145C43">DISEDIAKAN OLEH:</b><br><b>' + esc_(d.disediakanOleh.toUpperCase()) + '</b></td>' +
+    '<td style="text-align:right;vertical-align:bottom;color:#6a7771;font-size:7.5pt">Dijana melalui e-Panitia<br>' +
+    Utilities.formatDate(new Date(), ZON, 'dd/MM/yyyy HH:mm') + '</td></tr></table></body></html>';
 }
