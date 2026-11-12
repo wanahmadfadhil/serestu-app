@@ -111,6 +111,15 @@ textarea{resize:vertical}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-soft)}
 input[type=file]{width:100%;font-size:14px;padding:12px;border:1.5px dashed #AFC0B5;border-radius:12px;background:var(--surface-2)}
 .nota{font-size:12.5px;color:var(--muted)}
+.kl-wrap{position:relative;display:block}
+.kl-wrap input{padding-right:48px!important}
+.kl-mata{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:42px;height:42px;display:grid;place-items:center;border:0;background:none;color:var(--muted);border-radius:10px;cursor:pointer}
+.kl-mata[aria-pressed=true]{color:var(--green)}
+.medan-atas{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.medan-atas>span{font-size:13px;font-weight:500;color:var(--ink-2)}
+.pautan-teks{background:none;border:0;padding:4px 0;color:var(--green);font-weight:600;font-size:13px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.kod-input{text-align:center;letter-spacing:.5em;font-size:24px!important;font-weight:600}
+.langkah{font-size:12.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
 .ralat-kotak{background:var(--red-soft);color:var(--red);padding:10px 12px;border-radius:12px;font-size:13.5px}
 .ok-kotak{background:#DCEBE3;color:#145C43;padding:10px 12px;border-radius:12px;font-size:13.5px}
 .subjek{border:0}
@@ -859,13 +868,48 @@ async function viewAuth(msg, ok) {
     const el = $('#authSek'); if (el && S.awam.namaSekolah) el.textContent = S.awam.namaSekolah;
   } catch (e) { /* dipaparkan semasa daftar */ }
 }
-function borangMasuk() {
+/** Medan kata laluan dengan butang tunjuk / sembunyi */
+function medanKL(nama, label, auto, extra = '') {
+  return `<label class="medan"><span>${label}</span><span class="kl-wrap"><input type="password" name="${nama}" autocomplete="${auto}" required ${extra}>
+    <button type="button" class="kl-mata" data-act="tunjukKL" aria-label="Tunjuk kata laluan" aria-pressed="false">${ic('eye', 20)}</button></span></label>`;
+}
+function borangMasuk(emel) {
+  const ingat = ls.get('ep_ingat_emel') || '';
   $('#authBorang').innerHTML = `<form class="borang" data-sub="masuk">
-    <label class="medan"><span>Emel rasmi</span><input type="email" name="emel" autocomplete="username" required placeholder="nama@moe-dl.edu.my"></label>
-    <label class="medan"><span>Kata laluan</span><input type="password" name="kataLaluan" autocomplete="current-password" required></label>
+    <label class="medan"><span>Emel rasmi</span><input type="email" name="emel" autocomplete="username" required placeholder="nama@moe-dl.edu.my" value="${esc(emel || ingat)}"></label>
+    <div class="medan"><div class="medan-atas"><span>Kata laluan</span><button type="button" class="pautan-teks" data-act="lupaKL">Lupa kata laluan?</button></div>
+      <span class="kl-wrap"><input type="password" name="kataLaluan" autocomplete="current-password" required aria-label="Kata laluan">
+      <button type="button" class="kl-mata" data-act="tunjukKL" aria-label="Tunjuk kata laluan" aria-pressed="false">${ic('eye', 20)}</button></span></div>
+    <label class="sj-cek" style="font-size:14px"><input type="checkbox" name="ingat" ${ingat ? 'checked' : ''}><span>Ingat emel saya</span></label>
     <button class="btn utama penuh" type="submit">Log masuk</button>
-    <p class="nota">Akaun yang didaftarkan oleh pentadbir: kata laluan awal ialah 6 digit akhir No. Kad Pengenalan anda.</p>
-    <p class="nota">Terlupa kata laluan? Minta Super Admin sekolah menetapkan semula kata laluan anda.</p></form>`;
+    <p class="nota">Akaun yang didaftarkan oleh pentadbir: kata laluan awal ialah 6 digit akhir No. Kad Pengenalan anda.</p></form>`;
+}
+/** Lupa kata laluan — langkah 1: minta kod melalui emel */
+function borangLupa(emel) {
+  $$('.seg button').forEach(b => b.setAttribute('aria-selected', 'false'));
+  $('#authBorang').innerHTML = `<form class="borang" data-sub="lupa">
+    <p class="langkah">Langkah 1 daripada 2</p>
+    <h3 style="font-size:18px">Lupa kata laluan</h3>
+    <p class="nota" style="font-size:13.5px">Masukkan emel akaun anda. Kod 6 digit akan dihantar ke emel tersebut untuk menetapkan kata laluan baharu.</p>
+    <label class="medan"><span>Emel rasmi</span><input type="email" name="emel" autocomplete="username" required placeholder="nama@moe-dl.edu.my" value="${esc(emel || '')}"></label>
+    <button class="btn utama penuh" type="submit">${ic('mail', 18)}Hantar kod ke emel</button>
+    <button type="button" class="btn penuh" data-act="keMasuk">${ic('back', 18)}Kembali ke log masuk</button>
+    <p class="nota">Tiada akses emel? Minta Super Admin sekolah menetapkan semula kata laluan anda.</p></form>`;
+}
+/** Lupa kata laluan — langkah 2: masukkan kod dan kata laluan baharu */
+function borangSetSemula(emel, mesej) {
+  $('#authBorang').innerHTML = `<form class="borang" data-sub="setSemula"><input type="hidden" name="emel" value="${esc(emel)}">
+    <p class="langkah">Langkah 2 daripada 2</p>
+    <h3 style="font-size:18px">Tetapkan kata laluan baharu</h3>
+    <p class="ok-kotak">${esc(mesej || '')}</p>
+    <label class="medan"><span>Kod 6 digit dari emel</span><input name="kod" class="kod-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="\\d{6}" required></label>
+    ${medanKL('baru', 'Kata laluan baharu', 'new-password', 'minlength="6"')}
+    ${medanKL('ulang', 'Taip semula kata laluan baharu', 'new-password', 'minlength="6"')}
+    <button class="btn utama penuh" type="submit">${ic('key', 18)}Simpan dan log masuk</button>
+    <div class="baris-btn" style="justify-content:space-between">
+      <button type="button" class="pautan-teks" data-act="lupaKL" data-emel="${esc(emel)}">Hantar semula kod</button>
+      <button type="button" class="pautan-teks" data-act="keMasuk">Kembali ke log masuk</button></div></form>`;
+  setTimeout(() => { const k = $('#authBorang [name=kod]'); if (k) k.focus(); }, 100);
 }
 function borangDaftar() {
   const ada = S.awam && S.awam.panitia;
@@ -874,7 +918,7 @@ function borangDaftar() {
     <label class="medan"><span>No. Kad Pengenalan</span><input name="noKP" required inputmode="numeric" pattern="\\d{12}" maxlength="12" placeholder="12 digit tanpa sengkang"></label>
     <label class="medan"><span>Emel rasmi (DELIMa / MOE)</span><input type="email" name="emel" required autocomplete="email" placeholder="nama@${esc((S.awam && S.awam.domainEmel && S.awam.domainEmel.split(',')[0].trim()) || 'moe-dl.edu.my')}"></label>
     <label class="medan"><span>No. telefon bimbit</span><input type="tel" name="telefon" required autocomplete="tel" placeholder="0123456789"></label>
-    <label class="medan"><span>Kata laluan</span><input type="password" name="kataLaluan" required minlength="6" autocomplete="new-password" placeholder="Sekurang-kurangnya 6 aksara"></label>
+    ${medanKL('kataLaluan', 'Kata laluan', 'new-password', 'minlength="6" placeholder="Sekurang-kurangnya 6 aksara"')}
     ${ada ? subjekPicker([], S.awam.panitia) : '<p class="ralat-kotak">Senarai panitia tidak dapat dimuatkan. Anda boleh memilih subjek kemudian di halaman Profil.</p>'}
     <p class="nota">Akaun baharu akan diaktifkan selepas diluluskan oleh Super Admin sekolah.</p>
     <button class="btn utama penuh" type="submit">Hantar pendaftaran</button></form>`;
@@ -911,8 +955,8 @@ function paparWajibTukar() {
   bukaSheet(`<h3 class="sheet-t">Tukar kata laluan anda</h3>
     <p class="sheet-p">Anda log masuk dengan kata laluan lalai. Demi keselamatan fail panitia, sila tetapkan kata laluan baharu sebelum meneruskan.</p>
     <form class="borang" data-sub="hantarWajib">
-      <label class="medan"><span>Kata laluan baharu</span><input type="password" name="baru" required minlength="6" autocomplete="new-password"></label>
-      <label class="medan"><span>Taip semula kata laluan baharu</span><input type="password" name="ulang" required minlength="6" autocomplete="new-password"></label>
+      ${medanKL('baru', 'Kata laluan baharu', 'new-password', 'minlength="6"')}
+      ${medanKL('ulang', 'Taip semula kata laluan baharu', 'new-password', 'minlength="6"')}
       <button class="btn utama" type="submit">${ic('key', 18)}Simpan kata laluan</button>
       <button class="btn" type="button" data-act="logKeluarTerus">Log keluar</button></form>`, { kunci: true, fokus: true });
 }
@@ -1871,6 +1915,17 @@ const ACT = {
   zoomImg: el => paparZoom(el.src),
   segar: () => segarDetail(),
   keAdmin: () => pergi('admin'),
+  tunjukKL: el => {
+    const i = el.parentElement.querySelector('input'); const on = i.type === 'password';
+    i.type = on ? 'text' : 'password';
+    el.setAttribute('aria-pressed', on); el.setAttribute('aria-label', on ? 'Sembunyi kata laluan' : 'Tunjuk kata laluan');
+    i.focus();
+  },
+  lupaKL: el => {
+    if (el.dataset.emel) return SUB.lupa({ emel: { value: el.dataset.emel } });
+    const e = $('#authBorang [name=emel]'); borangLupa(e ? e.value.trim() : '');
+  },
+  keMasuk: () => { const e = $('#authBorang [name=emel]'); $$('.seg button').forEach((b, i) => b.setAttribute('aria-selected', i === 0)); borangMasuk(e ? e.value.trim() : ''); },
   authTab: el => { $$('.seg button').forEach(b => b.setAttribute('aria-selected', b === el)); el.dataset.t === 'daftar' ? borangDaftar() : borangMasuk(); },
   thToggle: el => { el.classList.toggle('on'); el.setAttribute('aria-pressed', el.classList.contains('on')); },
   bukaPanitia: el => {
@@ -2156,8 +2211,8 @@ const ACT = {
   },
   borangKataLaluan: () => {
     bukaSheet(`<h3 class="sheet-t">Tukar kata laluan</h3><form class="borang" data-sub="hantarKataLaluan">
-      <label class="medan"><span>Kata laluan semasa</span><input type="password" name="lama" required autocomplete="current-password"></label>
-      <label class="medan"><span>Kata laluan baharu</span><input type="password" name="baru" required minlength="6" autocomplete="new-password"></label>
+      ${medanKL('lama', 'Kata laluan semasa', 'current-password')}
+      ${medanKL('baru', 'Kata laluan baharu', 'new-password', 'minlength="6"')}
       <button class="btn utama" type="submit">Tukar kata laluan</button></form>`, { fokus: true });
   },
   logKeluar: async () => {
@@ -2254,7 +2309,26 @@ function pautanPemantau(kod) {
 
 /* ---------- Penghantaran borang ---------- */
 const SUB = {
+  lupa: async f => {
+    const emel = f.emel.value.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emel)) return toast('Isi emel yang sah.', 'ralat');
+    sibuk('Menghantar kod…');
+    try { const r = await call('lupaKataLaluan', { emel }); borangSetSemula(emel, r.mesej); toast('Semak emel anda'); }
+    catch (e) { toast(e.message, 'ralat'); } finally { sibuk(false); }
+  },
+  setSemula: async f => {
+    if (!/^\d{6}$/.test(f.kod.value.trim())) return toast('Masukkan kod 6 digit dari emel.', 'ralat');
+    if (f.baru.value.length < 6) return toast('Kata laluan baharu sekurang-kurangnya 6 aksara.', 'ralat');
+    if (f.baru.value !== f.ulang.value) return toast('Kedua-dua kata laluan tidak sama.', 'ralat');
+    sibuk('Menyimpan kata laluan…');
+    try {
+      const d = await call('setSemulaKataLaluan', { emel: f.emel.value, kod: f.kod.value.trim(), baru: f.baru.value });
+      setInit(d); $('#auth').innerHTML = ''; tunjukShell(); pergi('home'); sync(); mulaSyncBerkala(); setTimeout(() => muatAdmin(), 2500);
+      toast('Kata laluan baharu disimpan. Selamat datang!');
+    } catch (e) { toast(e.message, 'ralat'); } finally { sibuk(false); }
+  },
   masuk: async f => {
+    if (f.ingat && f.ingat.checked) ls.set('ep_ingat_emel', f.emel.value.trim()); else ls.del('ep_ingat_emel');
     sibuk('Log masuk…');
     try { const d = await call('login', { emel: f.emel.value, kataLaluan: f.kataLaluan.value }); setInit(d); $('#auth').innerHTML = ''; tunjukShell(); pergi('home'); sync(); mulaSyncBerkala(); setTimeout(() => muatAdmin(), 2500); }
     catch (e) { toast(e.message, 'ralat'); } finally { sibuk(false); }

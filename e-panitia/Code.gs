@@ -2,7 +2,7 @@
  * =====================================================================
  *  e-PANITIA — Sistem Pengurusan Panitia Sekolah Rendah
  *  Backend Google Apps Script (Google Sheets + Google Drive)
- *  Versi 1.6.0
+ *  Versi 1.6.1
  * =====================================================================
  *
  *  CARA PASANG
@@ -36,7 +36,7 @@
  * =====================================================================
  */
 
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.6.1';
 const KATA_LALUAN_LALAI = '12345678';
 const SESI_HARI = 7;
 const TONG_HARI = 30;
@@ -289,7 +289,7 @@ function json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 
-const AWAM = ['awam', 'daftar', 'login', 'pemantauData', 'imej', 'muatTurun'];
+const AWAM = ['awam', 'daftar', 'login', 'lupaKataLaluan', 'setSemulaKataLaluan', 'pemantauData', 'imej', 'muatTurun'];
 
 function handle_(q) {
   try {
@@ -312,7 +312,7 @@ function handle_(q) {
 }
 
 const ACTIONS = {
-  awam, daftar, login, logout, init, kemaskiniProfil, tukarKataLaluan, muatNaikFoto, muatNaikJadual, lihatJadual,
+  awam, daftar, login, lupaKataLaluan, setSemulaKataLaluan, logout, init, kemaskiniProfil, tukarKataLaluan, muatNaikFoto, muatNaikJadual, lihatJadual,
   sync, batch, jadualGuru, setNamaJadual, muatNaikFotoPentadbir,
   imej, muatTurun, panitiaDetail, simpanCarta, lantikSU, sahkanAhli, calonAhli, tambahAhli, keluarkanAhli, muatNaikFail, tambahPautan, padamFail,
   pulihFail, padamKekal, tambahTugasan, padamTugasan, janaLaporan, eksportCartaPdf, janaPemantau, batalPemantau,
@@ -909,6 +909,59 @@ function login(q) {
     u = update_('Pengguna', u.id, kataBaru_(q.kataLaluan)); // naik taraf hash lama secara senyap
   }
   return bukaSesi_(u);
+}
+
+/* ---------- Lupa kata laluan: kod 6 digit dihantar ke emel (sah 15 minit) ---------- */
+const RESET_MIN = 15, RESET_MAKS_KOD = 3, RESET_MAKS_CUBA = 5;
+const MESEJ_RESET = 'Jika emel ini berdaftar dan aktif, kod 6 digit telah dihantar. Semak peti masuk dan folder Spam.';
+
+function lupaKataLaluan(q) {
+  const emel = bersih_(q.emel, 120).toLowerCase();
+  mesti_(emelSah_(emel), 'Isi emel yang sah.');
+  const kKira = 'RESET_N_' + emel;
+  const n = Number(cache_().get(kKira)) || 0;
+  mesti_(n < RESET_MAKS_KOD, 'Terlalu banyak permintaan kod. Cuba lagi selepas ' + RESET_MIN + ' minit.');
+  cache_().put(kKira, String(n + 1), RESET_MIN * 60);
+  const u = rows_('Pengguna').find(x => x.emel === emel);
+  // Jawapan sama sama ada emel wujud atau tidak — elak orang luar menyemak emel berdaftar
+  if (!aktif_(u)) return { mesej: MESEJ_RESET };
+  const kod = ('00000' + (parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 12), 16) % 1000000)).slice(-6);
+  const salt = uid_(16);
+  cache_().put('RESET_' + emel, JSON.stringify({ h: hash_(kod, salt), salt, cuba: 0 }), RESET_MIN * 60);
+  const ok = hantarEmel_(u.emel, 'Kod set semula kata laluan e-Panitia: ' + kod,
+    '<p>Salam sejahtera ' + esc_(u.nama) + ',</p><p>Kami menerima permintaan untuk menetapkan semula kata laluan akaun e-Panitia anda.</p>' +
+    '<p style="font-size:30px;font-weight:bold;letter-spacing:8px;background:#eef3ef;padding:12px 16px;border-radius:10px;text-align:center;margin:16px 0">' + kod + '</p>' +
+    '<p>Masukkan kod ini dalam aplikasi. Kod sah selama <b>' + RESET_MIN + ' minit</b>.</p>' +
+    '<p style="color:#6a7771">Jika anda tidak meminta set semula kata laluan, abaikan emel ini. Kata laluan anda tidak berubah.</p>');
+  mesti_(ok, 'Emel tidak dapat dihantar sekarang. Hubungi Super Admin sekolah untuk set semula kata laluan.');
+  log_(u, '', '', 'LUPA KATA LALUAN', 'Kod set semula dihantar ke emel');
+  return { mesej: MESEJ_RESET };
+}
+
+function setSemulaKataLaluan(q) {
+  const emel = bersih_(q.emel, 120).toLowerCase();
+  const kod = String(q.kod || '').replace(/\D/g, '');
+  const k = 'RESET_' + emel;
+  let r = null;
+  try { r = JSON.parse(cache_().get(k) || 'null'); } catch (e) { r = null; }
+  mesti_(r, 'Kod tidak sah atau telah tamat tempoh. Minta kod baharu.');
+  if (r.cuba >= RESET_MAKS_CUBA || r.h !== hash_(kod, r.salt)) {
+    r.cuba = (r.cuba || 0) + 1;
+    if (r.cuba >= RESET_MAKS_CUBA) { cache_().remove(k); throw new Error('Terlalu banyak cubaan. Minta kod baharu.'); }
+    cache_().put(k, JSON.stringify(r), RESET_MIN * 60);
+    throw new Error('Kod tidak betul. Baki cubaan: ' + (RESET_MAKS_CUBA - r.cuba) + '.');
+  }
+  const u = rows_('Pengguna').find(x => x.emel === emel);
+  mesti_(aktif_(u), 'Akaun tidak aktif. Hubungi Super Admin sekolah.');
+  const baru = String(q.baru || '');
+  mesti_(baru.length >= 6, 'Kata laluan baharu sekurang-kurangnya 6 aksara.');
+  mesti_(baru !== KATA_LALUAN_LALAI && baru !== kataLalai_(u), 'Kata laluan baharu tidak boleh sama dengan kata laluan awal (6 digit akhir No. KP).');
+  cache_().remove(k);
+  cache_().remove('CUBA_L_' + emel);
+  const v = update_('Pengguna', u.id, Object.assign(kataBaru_(baru), { wajibTukar: '', dikemaskini: now_() }));
+  deleteWhere_('Sesi', x => x.userId === u.id); // log keluar semua peranti lain
+  log_(u, '', '', 'SET SEMULA KATA LALUAN', 'Melalui kod emel');
+  return bukaSesi_(v);
 }
 
 function bukaSesi_(u) {
