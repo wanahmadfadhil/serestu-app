@@ -3225,11 +3225,11 @@ function lihatAcara(id, jenis) {
 function borangProgram(x) {
   const K = K_(), pk = pentadbirKur();
   const pilihan = pk ? (S.data.semuaPanitia || []) : (S.data.semuaPanitia || []).filter(p => (K.panitiaSaya || []).includes(p.id));
-  if (!pk && !pilihan.length) return toast('Hanya Ketua Panitia, Setiausaha atau pentadbir boleh menambah program.', 'ralat');
+  if (!pk && !pilihan.length) return toast('Hanya pentadbir, Ketua Panitia atau Setiausaha Panitia boleh menambah aktiviti dalam takwim.', 'ralat');
   const v = k => esc(x ? x[k] || '' : '');
   const pre = x ? x.panitiaId : (S.panitiaId && pilihan.some(p => p.id === S.panitiaId) ? S.panitiaId : (pilihan[0] || {}).id || '');
   bukaSheet(`<h3 class="sheet-t">${x ? 'Ubah program' : 'Program baharu'}</h3><form class="borang" data-sub="hantarProgram"><input type="hidden" name="id" value="${v('id')}">
-    <label class="medan"><span>Penganjur</span><select name="panitiaId">${pk ? `<option value="" ${x && !x.panitiaId ? 'selected' : ''}>Peringkat sekolah / JK Kurikulum</option>` : ''}${pilihan.map(p => `<option value="${p.id}" ${p.id === pre ? 'selected' : ''}>Panitia ${esc(p.nama)}</option>`).join('')}</select></label>
+    <label class="medan"><span>Penganjur</span><select name="panitiaId"><option value="" ${x && !x.panitiaId ? 'selected' : ''}>Peringkat sekolah (semua panitia)</option>${pilihan.map(p => `<option value="${p.id}" ${p.id === pre ? 'selected' : ''}>Panitia ${esc(p.nama)}</option>`).join('')}</select></label>
     <label class="medan"><span>Nama program</span><input name="tajuk" value="${v('tajuk')}" maxlength="200" required placeholder="cth. Minggu Sains 2026"></label>
     <div class="dua"><label class="medan"><span>Tarikh mula</span><input type="date" name="tarikhMula" value="${v('tarikhMula') || (S.tkHari || '')}" required data-inp="tkTindih"></label>
       <label class="medan"><span>Tarikh tamat <i>(pilihan)</i></span><input type="date" name="tarikhTamat" value="${v('tarikhTamat')}" data-inp="tkTindih"></label></div>

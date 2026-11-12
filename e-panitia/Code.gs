@@ -2453,10 +2453,12 @@ function bolehUrusProgram_(u, x) {
   const p = rows_('Panitia').find(y => y.id === x.panitiaId && y.status !== 'PADAM');
   return !!p && akses_(u, p).su;
 }
+/** Ketua Panitia atau Setiausaha bagi mana-mana panitia aktif */
+function kpAtauSu_(u) { return senaraiAktif_().some(p => p.ketuaId === u.id || p.setiausahaId === u.id); }
 function simpanProgram(q, u) {
   const panitiaId = bersih_(q.panitiaId, 20);
   if (panitiaId) mesti_(akses_(u, panitia_(panitiaId)).su || pentadbirKur_(u), 'Hanya Ketua Panitia, Setiausaha atau pentadbir boleh menambah program panitia.');
-  else kurAdmin_(u);
+  else mesti_(pentadbirKur_(u) || kpAtauSu_(u), 'Hanya pentadbir, Ketua Panitia atau Setiausaha Panitia boleh menambah aktiviti peringkat sekolah.');
   const d = {
     panitiaId, tajuk: bersih_(q.tajuk, 200), kategori: bersih_(q.kategori, 40).toUpperCase() || 'PROGRAM',
     tarikhMula: tarikhWajib_(q.tarikhMula, 'Isi tarikh program.'), tarikhTamat: tarikhSah_(q.tarikhTamat),
