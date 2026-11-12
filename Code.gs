@@ -1162,16 +1162,29 @@ function aiPanggil_(c, sistem, mesej, maks) {
       payload: JSON.stringify({ model: c.model, max_tokens: maks || 1500, system: sistem, messages: [{ role: 'user', content: mesej }] }) };
   } else {
     url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(c.model) + ':generateContent';
-    opt = { method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { 'x-goog-api-key': c.key },
-      payload: JSON.stringify({ systemInstruction: { parts: [{ text: sistem }] }, contents: [{ role: 'user', parts: [{ text: mesej }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 8192, responseMimeType: 'application/json' } }) };
+    const gen = { temperature: 0.7, maxOutputTokens: Math.max(2048, maks || 1500), responseMimeType: 'application/json' };
+    // Mod "berfikir" (thinking) dimatikan/diminimumkan: laporan ringkas tidak memerlukannya dan ia melambatkan jawapan
+    const think = thinkingGemini_(c.model);
+    if (think) gen.thinkingConfig = think;
+    const bina = g => ({ method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { 'x-goog-api-key': c.key },
+      payload: JSON.stringify({ systemInstruction: { parts: [{ text: sistem }] }, contents: [{ role: 'user', parts: [{ text: mesej }] }], generationConfig: g }) });
+    opt = bina(gen);
+    if (think) {
+      // Jika model tidak menyokong tetapan thinking, cuba sekali lagi tanpanya
+      const g2 = Object.assign({}, gen); delete g2.thinkingConfig;
+      opt.ulang = bina(g2);
+    }
   }
-  let res;
-  try { res = UrlFetchApp.fetch(url, opt); } catch (e) {
-    const m = String(e.message || e);
-    if (/permission|external_request|kebenaran/i.test(m)) throw fail_('Apps Script belum dibenarkan menghubungi perkhidmatan luar. Pemilik skrip perlu membuka editor Apps Script, pilih fungsi benarkanAI, tekan Run dan luluskan kebenaran, kemudian Deploy versi baharu.');
-    throw fail_('Perkhidmatan AI tidak dapat dihubungi: ' + m);
-  }
+  const panggil = o => {
+    try { return UrlFetchApp.fetch(url, o); } catch (e) {
+      const m = String(e.message || e);
+      if (/permission|external_request|kebenaran/i.test(m)) throw fail_('Apps Script belum dibenarkan menghubungi perkhidmatan luar. Pemilik skrip perlu membuka editor Apps Script, pilih fungsi benarkanAI, tekan Run dan luluskan kebenaran, kemudian Deploy versi baharu.');
+      throw fail_('Perkhidmatan AI tidak dapat dihubungi: ' + m);
+    }
+  };
+  const ulang = opt.ulang; delete opt.ulang;
+  let res = panggil(opt);
+  if (ulang && res.getResponseCode() === 400 && /think/i.test(res.getContentText())) res = panggil(ulang);
   const code = res.getResponseCode(), body = parse_(res.getContentText(), {});
   if (code === 429) throw fail_('Had penggunaan perkhidmatan AI telah dicapai. Cuba lagi sebentar.', 'BUSY');
   if (code === 401 || code === 403) throw fail_('Kunci API ditolak oleh penyedia AI. Super Admin perlu menyemak kunci.');
@@ -1181,6 +1194,15 @@ function aiPanggil_(c, sistem, mesej, maks) {
   else teks = (((((body.candidates || [])[0] || {}).content || {}).parts || []).filter(x => x.text && !x.thought).map(x => x.text).join(''));
   if (!teks) throw fail_('Perkhidmatan AI tidak memulangkan jawapan. Cuba lagi.');
   return teks;
+}
+
+/** Tetapan thinking paling rendah mengikut keluarga model Gemini (null = jangan hantar). */
+function thinkingGemini_(model) {
+  const m = String(model || '').toLowerCase();
+  if (/gemini-2\.5-flash/.test(m)) return { thinkingBudget: 0 };          // 2.5 Flash / Flash-Lite: matikan
+  if (/gemini-2\.5-pro/.test(m)) return { thinkingBudget: 128 };          // 2.5 Pro: minimum yang dibenarkan
+  if (/gemini-[3-9]/.test(m)) return { thinkingLevel: /flash/.test(m) ? 'minimal' : 'low' };
+  return null;
 }
 
 function aiJson_(teks) {
@@ -1210,10 +1232,13 @@ function a_aiLaporan(d, ctx) {
   if (!c.key) throw fail_('Pembantu AI belum disediakan. Super Admin perlu memasukkan kunci API di Pentadbiran, Pembantu AI.');
   const tajuk = clean_(d.tajuk, 150);
   if (tajuk.length < 3) throw fail_('Isi Tajuk dahulu supaya AI tahu aktiviti perjumpaan ini.');
-  const j = jadual_(ctx.sesi).find(x => x.ID_Perjumpaan === d.idPerjumpaan);
+  // Guna data dalam cache (common_) supaya tidak membaca sheet Jadual, Format, Unit dan Kategori setiap kali
+  let c0 = common_(ctx.sesi);
+  if (c0.sesi !== ctx.sesi) { CacheService.getScriptCache().remove('c_common'); c0 = common_(ctx.sesi); }
+  const j = (c0.jadual.find(x => x.id === d.idPerjumpaan) || null);
   if (!j) throw fail_('Perjumpaan tidak dijumpai.');
-  const fmt = rows_('Format_Laporan').find(f => f.Versi === String(d.versi)) || rows_('Format_Laporan').find(f => f.Aktif === 'Ya');
-  const semua = medanLaporan_(parse_(fmt ? fmt.Medan_JSON : '[]', []));
+  const fmt = c0.format.find(f => String(f.versi) === String(d.versi)) || c0.format.find(f => f.aktif);
+  const semua = medanLaporan_(fmt ? fmt.medan : []);
   const ingin = Array.isArray(d.medan) ? d.medan.map(String) : [];
   const sasaran = semua.filter(f => ingin.indexOf(f.id) >= 0 && (f.jenis === 'teks' || f.jenis === 'panjang') && f.id !== 'tajuk');
   if (!sasaran.length) throw fail_('Tiada medan untuk dijana.');
@@ -1224,11 +1249,18 @@ function a_aiLaporan(d, ctx) {
   const guna = Number(cache.get(kunciHad) || 0);
   if (guna >= c.had && !ctx.super) throw fail_('Had harian ' + c.had + ' kali penjanaan AI telah dicapai. Cuba lagi esok.', 'BUSY');
 
-  const u = rows_('Unit').find(x => x.ID_Unit === idUnit) || {};
-  const k = rows_('Kategori').find(x => x.ID_Kategori === u.ID_Kategori) || {};
-  const ahli = rows_('Enrolmen').filter(e => e.Tahun === ctx.sesi && e.ID_Unit === idUnit && e.Status === 'Aktif');
-  let hadir = 0;
-  rows_('Kehadiran').forEach(r => { if (r.Tahun === ctx.sesi && r.ID_Unit === idUnit && r['P' + j.Bil] === 'H') hadir++; });
+  const cu = c0.unit.find(x => x.id === idUnit) || {};
+  const ck = c0.kategori.find(x => x.id === cu.idKategori) || {};
+  const u = { Nama_Unit: cu.nama || '' }, k = { Nama_Kategori: ck.nama || '' };
+  // Bilangan hadir/ahli dihantar oleh aplikasi (sudah ada dalam peranti). Hanya untuk konteks AI, jadi tidak perlu membaca sheet Kehadiran yang besar.
+  const nOk = v => v !== undefined && v !== null && v !== '' && isFinite(v) && Number(v) >= 0 && Number(v) <= 2000;
+  let hadir, bilAhli;
+  if (nOk(d.hadir) && nOk(d.ahli)) { hadir = Math.floor(Number(d.hadir)); bilAhli = Math.floor(Number(d.ahli)); }
+  else {
+    bilAhli = rows_('Enrolmen').filter(e => e.Tahun === ctx.sesi && e.ID_Unit === idUnit && e.Status === 'Aktif').length;
+    hadir = 0;
+    rows_('Kehadiran').forEach(r => { if (r.Tahun === ctx.sesi && r.ID_Unit === idUnit && r['P' + j.bil] === 'H') hadir++; });
+  }
   const lain = d.data || {};
   const konteks = semua.filter(f => sasaran.indexOf(f) < 0 && f.jenis !== 'gambar' && lain[f.id])
     .map(f => '- ' + f.label + ': ' + clean_(lain[f.id], 600)).join('\n');
@@ -1241,9 +1273,9 @@ function a_aiLaporan(d, ctx) {
     'Maklumat perjumpaan:',
     '- Sekolah: ' + (t.NAMA_SEKOLAH || CONFIG.NAMA_SEKOLAH),
     '- Unit: ' + (u.Nama_Unit || '') + (k.Nama_Kategori ? ' (' + k.Nama_Kategori + ')' : ''),
-    '- Perjumpaan ke-' + j.Bil + (j.Tarikh ? ', ' + j.Tarikh : ''),
+    '- Perjumpaan ke-' + j.bil + (j.tarikh ? ', ' + j.tarikh : ''),
     '- Tajuk: ' + tajuk,
-    ahli.length ? '- Kehadiran: ' + hadir + ' daripada ' + ahli.length + ' ahli' : '',
+    bilAhli ? '- Kehadiran: ' + hadir + ' daripada ' + bilAhli + ' ahli' : '',
     d.nota ? '- Catatan guru tentang perjumpaan ini: ' + clean_(d.nota, 800) : '',
     konteks ? 'Maklumat lain dalam laporan:\n' + konteks : '',
     '',
@@ -1253,7 +1285,7 @@ function a_aiLaporan(d, ctx) {
     'Gunakan "\\n" untuk baris baharu dalam senarai bernombor.'
   ].filter(x => x !== '').join('\n');
 
-  const o = aiJson_(aiPanggil_(c, sistem, mesej, 1500));
+  const o = aiJson_(aiPanggil_(c, sistem, mesej, Math.min(2500, 500 + sasaran.length * 400)));
   const hasil = {};
   sasaran.forEach(f => {
     let v = o[f.id];

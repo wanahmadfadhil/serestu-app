@@ -2252,7 +2252,10 @@ async function aiJalan(medan, nota) {
   const lf = S.lf;
   lf.aiNota = nota;
   try {
-    const r = await api('aiLaporan', { idUnit: lf.unit, idPerjumpaan: lf.idP, versi: lf.fmt.versi, tajuk, nota, medan, data: collectLaporan() }, { timeout: 90000 });
+    // Bilangan hadir dan ahli sudah ada dalam peranti: hantar terus supaya pelayan tidak perlu membaca sheet Kehadiran
+    const ud = S.ud && S.ud.unit && S.ud.unit.id === lf.unit ? S.ud : null;
+    const kira = ud ? { ahli: ud.ahli.length, hadir: ud.ahli.filter(m => ((ud.kehadiran || {})[m.id] || {})[lf.j.bil] === 'H').length } : {};
+    const r = await api('aiLaporan', Object.assign({ idUnit: lf.unit, idPerjumpaan: lf.idP, versi: lf.fmt.versi, tajuk, nota, medan, data: collectLaporan() }, kira), { timeout: 90000 });
     if (S.lf !== lf) return true;
     Object.keys(r.hasil).forEach(id => {
       const box = $('#lf_' + id);
