@@ -940,7 +940,7 @@ async function boot() {
   } else $('#auth').innerHTML = `<div class="auth"><div class="auth-atas">${rakHiasan()}<h1>e-Kurikulum</h1><p>Memuatkan data…</p></div></div>`;
   try {
     hantarOutbox();
-    const r = await call('sync', { etag: c ? (store.get('ep_etag') || '') : '', aktif: S.panitiaId }, { senyap: !!c });
+    const r = await call('sync', { etag: c && !perluKurPenuh() ? (store.get('ep_etag') || '') : '', aktif: S.panitiaId }, { senyap: !!c });
     if (!c) { $('#auth').innerHTML = ''; tunjukShell(); }
     terimaSync(r, !c);
     if (!c) render();
@@ -1204,7 +1204,7 @@ async function sync() {
   if (!S.token || SYNC_JALAN || OUTBOX_JALAN || outbox().length) return; // outbox akan membawa data terkini sendiri
   SYNC_JALAN = true;
   try {
-    const r = await call('sync', { etag: store.get('ep_etag') || '', aktif: S.panitiaId }, { senyap: true });
+    const r = await call('sync', { etag: perluKurPenuh() ? '' : (store.get('ep_etag') || ''), aktif: S.panitiaId }, { senyap: true });
     terimaSync(r);
     setLuar(false);
   } catch (e) { if (e.offline) setLuar(true); }
@@ -3112,8 +3112,13 @@ const isoDari = t => `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDat
 const hariISO = (tambah = 0) => { const t = new Date(); t.setDate(t.getDate() + tambah); return isoDari(t); };
 const tarikhObj = iso => { const [y, m, d] = String(iso).split('-').map(Number); return new Date(y, m - 1, d); };
 const idKlien = awal => awal + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-const K_ = () => S.kur || (S.kur = { akses: 'GURU', program: [], mesyuarat: [], tindakan: [], dokSekolah: [], panitiaSaya: [] });
-const pentadbirKur = () => !!(S.kur && S.kur.akses === 'PENTADBIR');
+const K_ = () => S.kur || (S.kur = { _lalai: true, akses: 'GURU', program: [], mesyuarat: [], tindakan: [], dokSekolah: [], panitiaSaya: [] });
+const pentadbirKur = () => !!((S.kur && S.kur.akses === 'PENTADBIR') || (S.data && S.data.pentadbirKur) || (S.user && S.user.peranan === 'SUPER_ADMIN'));
+/** Kod pelayan (Code.gs) lebih lama daripada 2.0.0 — Takwim & Kurikulum belum disokong */
+const pelayanLama = () => { const v = String((S.data && S.data.versi) || '0').split('.').map(Number); return (v[0] || 0) < 2; };
+const amaranPelayanHTML = () => pelayanLama() ? `<div class="ingat" style="margin:0 0 14px;background:var(--red-soft);border-color:#E9B8AF">${ic('x')}<div><b>Kod pelayan belum dikemas kini</b><p>Code.gs yang di-deploy masih versi ${esc((S.data && S.data.versi) || '?')}. Tampal Code.gs versi 2.0.0, jalankan setupSistem(), kemudian Manage deployments › Edit › New version.</p></div></div>` : '';
+/** Data kurikulum belum diterima daripada pelayan: paksa sync penuh (abaikan etag) */
+const perluKurPenuh = () => !S.kur || S.kur._lalai;
 const simpanKur = () => store.set('ep_kur', S.kur);
 const namaPanitia = id => { const p = (S.data.semuaPanitia || []).find(x => x.id === id); return p ? p.nama : ''; };
 function renderKurSemasa() { if (['home', 'takwim', 'kurikulum'].includes(S.tab) && !S.pemantau) render(); }
@@ -3189,7 +3194,7 @@ function viewTakwim() {
   const senarai = S.tkHari ? bulanIni.filter(a => a.mula <= S.tkHari && a.tamat >= S.tkHari) : bulanIni;
   const bolehTambah = bolehTambahTakwim();
   const pilihanP = [...new Set((K.program || []).map(x => x.panitiaId).filter(Boolean))].map(id => ({ id, nama: namaPanitia(id) })).filter(x => x.nama).sort((a, b) => a.nama.localeCompare(b.nama));
-  $('#main').innerHTML = `
+  $('#main').innerHTML = `${amaranPelayanHTML()}
     <div class="tk-alat"><select data-chg="tkTapis" aria-label="Tapis takwim"><option value="">Semua program</option><option value="SEKOLAH" ${tapis === 'SEKOLAH' ? 'selected' : ''}>JK Kurikulum &amp; peringkat sekolah</option>
       ${pilihanP.map(p => `<option value="${p.id}" ${tapis === p.id ? 'selected' : ''}>Panitia ${esc(p.nama)}</option>`).join('')}</select>
       ${bolehTambah ? `<button class="btn kuning" data-act="borangProgram">${ic('plus', 18)}Aktiviti</button>` : ''}</div>
@@ -3226,6 +3231,7 @@ function lihatAcara(id, jenis) {
 }
 function bolehTambahTakwim() { return pentadbirKur() || (K_().panitiaSaya || []).length > 0; }
 function borangProgram(x, tarikh) {
+  if (pelayanLama()) return toast('Kod pelayan (Code.gs) belum dikemas kini ke versi 2.0.0. Hubungi pentadbir sistem.', 'ralat');
   const K = K_(), pk = pentadbirKur();
   const pilihan = pk ? (S.data.semuaPanitia || []) : (S.data.semuaPanitia || []).filter(p => (K.panitiaSaya || []).includes(p.id));
   if (!pk && !pilihan.length) return toast('Hanya pentadbir, Ketua Panitia atau Setiausaha Panitia boleh menambah aktiviti dalam takwim.', 'ralat');
@@ -3262,7 +3268,7 @@ function viewKurikulum() {
   const tabs = pk ? [['papan', 'Papan pemuka'], ['jk', 'JK Kurikulum'], ['dok', 'Dok. wajib']] : [['jk', 'JK Kurikulum'], ['saya', 'Tindakan saya'], ['dok', 'Dok. wajib']];
   if (!S.kurTab || !tabs.some(t => t[0] === S.kurTab)) S.kurTab = tabs[0][0];
   const isi = { papan: kurPapanHTML, jk: kurJKHTML, saya: kurSayaHTML, dok: kurDokHTML }[S.kurTab]();
-  $('#main').innerHTML = `<div class="seg tiga" role="tablist" aria-label="Bahagian kurikulum">${tabs.map(([k, l]) => `<button role="tab" aria-selected="${S.kurTab === k}" data-act="kurTab" data-t="${k}">${l}</button>`).join('')}</div>${isi}`;
+  $('#main').innerHTML = `${amaranPelayanHTML()}<div class="seg tiga" role="tablist" aria-label="Bahagian kurikulum">${tabs.map(([k, l]) => `<button role="tab" aria-selected="${S.kurTab === k}" data-act="kurTab" data-t="${k}">${l}</button>`).join('')}</div>${isi}`;
 }
 function kurPapanHTML() {
   const K = K_(), P = K.papan || [], kini = hariISO(0), had30 = hariISO(-30);
