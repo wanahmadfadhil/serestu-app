@@ -1,8 +1,8 @@
 /**
  * =====================================================================
- *  e-PANITIA — Sistem Pengurusan Panitia Sekolah Rendah
+ *  e-KURIKULUM — Sistem Pengurusan Kurikulum & Panitia Sekolah Rendah
  *  Backend Google Apps Script (Google Sheets + Google Drive)
- *  Versi 1.7.0
+ *  Versi 2.0.0
  * =====================================================================
  *
  *  CARA PASANG
@@ -25,6 +25,14 @@
  *  7. Guru yang diimport dari tab "Data Guru": kata laluan awal ialah
  *     6 DIGIT AKHIR No. KP dan wajib ditukar semasa log masuk pertama.
  *
+ *  e-KURIKULUM FASA 1 (versi 2.0.0)
+ *   - Menu: Utama · Panitia · Takwim · Kurikulum · Profil
+ *   - Pentadbir kurikulum = Super Admin + GB, PK Pentadbiran, SU Kurikulum
+ *     (Tetapan) + pengguna dalam "Akses pentadbir kurikulum tambahan".
+ *     Mereka boleh melihat semua panitia, mengurus JK Kurikulum, tindakan
+ *     susulan, dokumen wajib sekolah dan program peringkat sekolah.
+ *   - Jadual baharu (dijana automatik): Program, Mesyuarat, Tindakan, DokSekolah.
+ *
  *  TRIGGER AUTOMATIK (dipasang oleh setupSistem)
  *   - bersihkanTong       : setiap hari 2 pagi
  *   - peringatanTugasan   : setiap hari 7 pagi (emel dokumen wajib hampir tarikh akhir)
@@ -36,7 +44,7 @@
  * =====================================================================
  */
 
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '2.0.0';
 const KATA_LALUAN_LALAI = '12345678';
 const SESI_HARI = 7;
 const TONG_HARI = 30;
@@ -63,7 +71,13 @@ const SCHEMA = {
   Log:      ['id', 'masa', 'userId', 'nama', 'panitiaId', 'folderNo', 'tindakan', 'butiran'],
   Laporan:  ['id', 'panitiaId', 'tarikh', 'kategori', 'tajuk', 'tarikhMula', 'tarikhTamat', 'tarikhProgram', 'tempat',
              'objektif', 'tentatif', 'catatan', 'fotoIds', 'lakaranId', 'disediakanOleh', 'disediakanId', 'failId', 'driveId',
-             'dicipta', 'dikemaskini', 'status']
+             'dicipta', 'dikemaskini', 'status'],
+  Program:  ['id', 'panitiaId', 'tajuk', 'kategori', 'tarikhMula', 'tarikhTamat', 'masa', 'tempat', 'catatan', 'laporanId',
+             'diciptaId', 'diciptaOleh', 'dicipta', 'dikemaskini', 'status'],
+  Mesyuarat: ['id', 'tahun', 'bil', 'tajuk', 'tarikh', 'masa', 'tempat', 'status', 'minitUrl', 'minitDriveId', 'minitNama', 'minitMime',
+              'catatan', 'diciptaOleh', 'dicipta', 'dikemaskini'],
+  Tindakan: ['id', 'mesyuaratId', 'perkara', 'pemilikId', 'pemilikNama', 'tarikhAkhir', 'status', 'catatan', 'selesaiPada', 'selesaiOleh', 'dicipta'],
+  DokSekolah: ['id', 'tajuk', 'folderNo', 'tarikhAkhir', 'catatan', 'diciptaOleh', 'dicipta', 'status']
 };
 
 const KATEGORI_LAPORAN = ['LAPORAN', 'PROGRAM', 'PERTANDINGAN', 'KURSUS / LDP', 'MESYUARAT', 'BENGKEL', 'LAWATAN', 'LAIN-LAIN'];
@@ -95,6 +109,7 @@ const TETAPAN_ASAS = [
   ['gbFoto', '', 'ID foto Guru Besar (jika tidak dipautkan kepada pengguna)'],
   ['pkFoto', '', 'ID foto PK Pentadbiran (jika tidak dipautkan kepada pengguna)'],
   ['sukFoto', '', 'ID foto SU Kurikulum (jika tidak dipautkan kepada pengguna)'],
+  ['aksesKurikulum', '', 'ID pengguna tambahan (dipisah koma) yang mendapat akses pentadbir kurikulum, cth. Ketua Bidang'],
   ['domainEmel', '', 'Hadkan pendaftaran kepada domain emel ini, cth. moe-dl.edu.my (kosong = semua emel)'],
   ['emelPeringatan', 'YA', 'YA = hantar emel peringatan dokumen wajib kepada guru'],
   ['benamkan', 'TIDAK', 'YA hanya jika aplikasi dibenamkan dalam Google Sites / iframe laman lain'],
@@ -175,7 +190,7 @@ function ujiJadual() {
 
 function onOpen() {
   try {
-    SpreadsheetApp.getUi().createMenu('⚙️ e-Panitia')
+    SpreadsheetApp.getUi().createMenu('⚙️ e-Kurikulum')
       .addItem('Jana / baiki jadual', 'setupSistem')
       .addItem('Import guru dari tab Data Guru', 'importDataGuru')
       .addItem('Kosongkan cache', 'kosongkanCache')
@@ -259,19 +274,19 @@ function importDataGuru() {
  * ===================================================================== */
 function doGet(e) {
   const p = (e && e.parameter) || {};
-  if (p.api === 'ping') return json_({ ok: true, app: 'e-Panitia', versi: APP_VERSION });
+  if (p.api === 'ping') return json_({ ok: true, app: 'e-Kurikulum', versi: APP_VERSION });
   let benam = false;
   try { ensureSchema_(); benam = String(tetapan_().benamkan || '').toUpperCase() === 'YA'; } catch (e) { /* guna lalai */ }
   try { selesai_(); } catch (e) { /* */ }
   try {
     const out = HtmlService.createHtmlOutputFromFile('index')
-      .setTitle('e-Panitia')
+      .setTitle('e-Kurikulum')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
     // Benarkan dibenamkan dalam iframe (Google Sites) hanya jika ditetapkan — elak clickjacking
     if (benam) out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     return out;
   } catch (err) {
-    return json_({ ok: true, app: 'e-Panitia', versi: APP_VERSION, nota: 'Fail HTML "index" tiada. Guna mod hos luar.' });
+    return json_({ ok: true, app: 'e-Kurikulum', versi: APP_VERSION, nota: 'Fail HTML "index" tiada. Guna mod hos luar.' });
   }
 }
 
@@ -323,7 +338,9 @@ const ACTIONS = {
   imej, muatTurun, panitiaDetail, simpanCarta, lantikSU, sahkanAhli, calonAhli, tambahAhli, keluarkanAhli, muatNaikFail, tambahPautan, padamFail,
   pulihFail, padamKekal, tambahTugasan, padamTugasan, janaLaporan, eksportCartaPdf, janaPemantau, batalPemantau,
   pemantauData, senaraiPengguna, simpanPanitia, padamPanitia, lantikKP, kemaskiniPengguna, resetKataLaluan,
-  simpanTetapan, luluskanPengguna, simpanLaporan, laporanDetail, padamLaporan
+  simpanTetapan, luluskanPengguna, simpanLaporan, laporanDetail, padamLaporan,
+  simpanProgram, padamProgram, simpanMesyuarat, padamMesyuarat, muatNaikMinit, lihatMinit,
+  simpanTindakan, statusTindakan, padamTindakan, simpanDokSekolah, padamDokSekolah
 };
 
 /* =====================================================================
@@ -412,6 +429,7 @@ function kunci_() {
   // Selepas memegang kunci, buang data yang dibaca sebelum kunci supaya tulisan berdasarkan data terkini
   _P = null;
   _G = null;
+  _PK = null;
   Object.keys(_C).forEach(k => delete _C[k]);
 }
 function kotor_(name) {
@@ -657,12 +675,12 @@ function hantarEmel_(kepada, subjek, isiHtml) {
     if (!kepada || MailApp.getRemainingDailyQuota() < 1) return false;
     const url = urlApp_();
     MailApp.sendEmail({
-      to: kepada, subject: subjek, name: 'e-Panitia ' + namaSekolah_(),
+      to: kepada, subject: subjek, name: 'e-Kurikulum ' + namaSekolah_(),
       htmlBody: '<div style="font-family:Arial,sans-serif;font-size:14px;color:#1c2b39;max-width:560px">' +
-        '<div style="background:#145C43;color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;font-weight:bold">e-Panitia · ' + esc_(namaSekolah_()) + '</div>' +
+        '<div style="background:#145C43;color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;font-weight:bold">e-Kurikulum · ' + esc_(namaSekolah_()) + '</div>' +
         '<div style="border:1px solid #d3dbd5;border-top:0;padding:16px;border-radius:0 0 10px 10px">' + isiHtml +
-        (url ? '<p style="margin-top:18px"><a href="' + esc_(url) + '" style="background:#145C43;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none">Buka e-Panitia</a></p>' : '') +
-        '<p style="color:#6a7771;font-size:12px;margin-top:18px">Emel automatik daripada sistem e-Panitia. Jangan balas emel ini.</p></div></div>'
+        (url ? '<p style="margin-top:18px"><a href="' + esc_(url) + '" style="background:#145C43;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none">Buka e-Kurikulum</a></p>' : '') +
+        '<p style="color:#6a7771;font-size:12px;margin-top:18px">Emel automatik daripada sistem e-Kurikulum. Jangan balas emel ini.</p></div></div>'
     });
     return true;
   } catch (e) { Logger.log('Emel gagal ke ' + kepada + ': ' + e.message); return false; }
@@ -676,6 +694,7 @@ function esc_(s) {
 function emelSah_(e) { return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e); }
 function tetapan_() { const o = {}; rows_('Tetapan').forEach(r => { o[r.kunci] = r.nilai; }); return o; }
 function setTetapan_(k, v) {
+  _PK = null;
   if (rows_('Tetapan').find(x => x.kunci === k)) update_('Tetapan', k, { nilai: v }, 'kunci');
   else insert_('Tetapan', { kunci: k, nilai: v, catatan: '' });
 }
@@ -731,8 +750,23 @@ function auth_(token) {
 function admin_(u) { mesti_(u && u.peranan === 'SUPER_ADMIN', 'Hanya Super Admin boleh melakukan tindakan ini.'); }
 
 /** r: KP | SU | AHLI | MENUNGGU | null */
+/** Pentadbir kurikulum: Super Admin, GB, PK Pentadbiran, SU Kurikulum dan pengguna dalam Tetapan.aksesKurikulum */
+let _PK = null;
+function pentadbirKur_(u) {
+  if (!u) return false;
+  if (u.peranan === 'SUPER_ADMIN') return true;
+  if (!_PK) {
+    const t = tetapan_();
+    _PK = {};
+    [t.gbId, t.pkId, t.sukId].concat(String(t.aksesKurikulum || '').split(/[\s,]+/)).forEach(id => { if (id) _PK[id] = 1; });
+  }
+  return !!_PK[u.id];
+}
+function kurAdmin_(u) { mesti_(pentadbirKur_(u), 'Hanya pentadbir kurikulum (GB, PK, SU Kurikulum) boleh melakukan tindakan ini.'); }
+
 function akses_(u, p) {
   const admin = u.peranan === 'SUPER_ADMIN';
+  const pk = !admin && pentadbirKur_(u);
   let r = null;
   if (p.ketuaId && p.ketuaId === u.id) r = 'KP';
   else if (p.setiausahaId && p.setiausahaId === u.id) r = 'SU';
@@ -740,8 +774,8 @@ function akses_(u, p) {
     const k = rows_('Keahlian').find(x => x.panitiaId === p.id && x.userId === u.id);
     if (k) r = k.status === 'SAH' ? 'AHLI' : 'MENUNGGU';
   }
-  const lihat = admin || r === 'KP' || r === 'SU' || r === 'AHLI';
-  return { r, admin, lihat, urus: admin || r === 'KP', su: admin || r === 'KP' || r === 'SU', kew: admin || r === 'KP' || r === 'SU' };
+  const lihat = admin || pk || r === 'KP' || r === 'SU' || r === 'AHLI';
+  return { r, admin, pentadbir: admin || pk, lihat, urus: admin || r === 'KP', su: admin || r === 'KP' || r === 'SU', kew: admin || pk || r === 'KP' || r === 'SU' };
 }
 
 function ahliPanitia_(p) {
@@ -934,8 +968,8 @@ function lupaKataLaluan(q) {
   const kod = ('00000' + (parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 12), 16) % 1000000)).slice(-6);
   const salt = uid_(16);
   cache_().put('RESET_' + emel, JSON.stringify({ h: hash_(kod, salt), salt, cuba: 0 }), RESET_MIN * 60);
-  const ok = hantarEmel_(u.emel, 'Kod set semula kata laluan e-Panitia: ' + kod,
-    '<p>Salam sejahtera ' + esc_(u.nama) + ',</p><p>Kami menerima permintaan untuk menetapkan semula kata laluan akaun e-Panitia anda.</p>' +
+  const ok = hantarEmel_(u.emel, 'Kod set semula kata laluan e-Kurikulum: ' + kod,
+    '<p>Salam sejahtera ' + esc_(u.nama) + ',</p><p>Kami menerima permintaan untuk menetapkan semula kata laluan akaun e-Kurikulum anda.</p>' +
     '<p style="font-size:30px;font-weight:bold;letter-spacing:8px;background:#eef3ef;padding:12px 16px;border-radius:10px;text-align:center;margin:16px 0">' + kod + '</p>' +
     '<p>Masukkan kod ini dalam aplikasi. Kod sah selama <b>' + RESET_MIN + ' minit</b>.</p>' +
     '<p style="color:#6a7771">Jika anda tidak meminta set semula kata laluan, abaikan emel ini. Kata laluan anda tidak berubah.</p>');
@@ -1003,7 +1037,8 @@ function init(q, u) {
     tetapan: { namaSekolah: t.namaSekolah, kodSekolah: t.kodSekolah },
     versi: APP_VERSION,
     urlApp: urlApp_(),
-    jadualAda: (() => { try { return !!padanJadual_(u, jadualIndeks_()); } catch (e) { return false; } })()
+    jadualAda: (() => { try { return !!padanJadual_(u, jadualIndeks_()); } catch (e) { return false; } })(),
+    pentadbirKur: pentadbirKur_(u)
   };
 }
 
@@ -1163,7 +1198,7 @@ function balasAdmin_(q, u) { return _BATCH ? { ok: true } : senaraiPengguna(q, u
 /** ETag = versi semua jadual + pengguna. Jika sama dengan klien, tiada data dihantar. */
 function etag_(u) {
   const g = gens_();
-  return APP_VERSION + '|' + u.id + '|' + ['Tetapan', 'Pengguna', 'Panitia', 'Keahlian', 'Carta', 'Fail', 'Tugasan', 'Pemantau', 'Log', 'Laporan'].map(n => g[n]).join('.');
+  return APP_VERSION + '|' + u.id + '|' + ['Tetapan', 'Pengguna', 'Panitia', 'Keahlian', 'Carta', 'Fail', 'Tugasan', 'Pemantau', 'Log', 'Laporan', 'Program', 'Mesyuarat', 'Tindakan', 'DokSekolah'].map(n => g[n]).join('.');
 }
 
 /** Satu panggilan untuk semua data yang diperlukan skrin: init + butiran setiap panitia pengguna */
@@ -1175,12 +1210,14 @@ function sync(q, u) {
   if (q.aktif && ids.indexOf(q.aktif) < 0 && d.panitia.some(p => p.id === q.aktif && p.lihat)) ids.push(q.aktif);
   const detail = {};
   ids.slice(0, 12).forEach(id => { try { detail[id] = panitiaDetail({ id }, u); } catch (e) { /* abaikan */ } });
-  return { etag: et, init: d, detail };
+  return { etag: et, init: d, detail, kur: kurikulumData_(u) };
 }
 
 const BOLEH_BATCH = ['kemaskiniProfil', 'simpanCarta', 'lantikSU', 'sahkanAhli', 'tambahAhli', 'keluarkanAhli',
   'padamFail', 'pulihFail', 'padamKekal', 'tambahTugasan', 'padamTugasan', 'batalPemantau',
-  'simpanPanitia', 'padamPanitia', 'lantikKP', 'kemaskiniPengguna', 'simpanTetapan', 'luluskanPengguna', 'padamLaporan'];
+  'simpanPanitia', 'padamPanitia', 'lantikKP', 'kemaskiniPengguna', 'simpanTetapan', 'luluskanPengguna', 'padamLaporan',
+  'simpanProgram', 'padamProgram', 'simpanMesyuarat', 'padamMesyuarat', 'simpanTindakan', 'statusTindakan', 'padamTindakan',
+  'simpanDokSekolah', 'padamDokSekolah'];
 
 /** Jalankan beberapa perubahan dari outbox klien dalam satu permintaan. ID operasi menghalang hantar berganda. */
 function batch(q, u) {
@@ -1350,6 +1387,10 @@ function panitiaDetail(q, u) {
     tugasan,
     semakan,
     laporan: senaraiLaporan_(p),
+    dokSekolah: rows_('DokSekolah').filter(d => d.status === 'AKTIF').map(d => {
+      const f = failSemua.find(x => x.status === 'AKTIF' && x.tugasanId === d.id);
+      return { id: d.id, tajuk: d.tajuk, folderNo: Number(d.folderNo) || 1, tarikhAkhir: d.tarikhAkhir, catatan: d.catatan, siap: !!f, failId: f ? f.id : '' };
+    }),
     pemantau: a.urus ? rows_('Pemantau').filter(x => x.panitiaId === p.id && x.status === 'AKTIF' && new Date(x.tamat) > new Date())
       .map(x => ({ id: x.id, kod: x.kod, label: x.label, tamat: x.tamat })) : [],
     log: logTerkini_(400).filter(l => l.panitiaId === p.id && (a.kew || l.folderNo !== '9')).slice(-25).reverse()
@@ -1485,7 +1526,8 @@ function semakFolder_(u, p, no) {
 function tugasanSah_(p, id) {
   id = bersih_(id, 20);
   if (!id) return '';
-  return rows_('Tugasan').some(t => t.id === id && t.panitiaId === p.id) ? id : '';
+  if (rows_('Tugasan').some(t => t.id === id && t.panitiaId === p.id)) return id;
+  return rows_('DokSekolah').some(d => d.id === id && d.status === 'AKTIF') ? id : '';
 }
 
 function muatNaikFail(q, u) {
@@ -1632,7 +1674,7 @@ function janaLaporan(q, u) {
     '<div style="font-weight:bold;margin:6px 0">Gambar Aktiviti</div>' +
     '<table style="width:100%;border-collapse:collapse">' + grid + '</table>' +
     '<table style="width:100%;margin-top:14px"><tr><td style="width:50%">Disediakan oleh:<br><br><b>' + esc_(u.nama) + '</b><br>' + esc_(u.jawatan || 'Guru') +
-    '</td><td style="text-align:right;vertical-align:bottom;color:#6a7771;font-size:9pt">Dijana melalui e-Panitia<br>' +
+    '</td><td style="text-align:right;vertical-align:bottom;color:#6a7771;font-size:9pt">Dijana melalui e-Kurikulum<br>' +
     Utilities.formatDate(new Date(), 'Asia/Kuala_Lumpur', 'dd/MM/yyyy HH:mm') + '</td></tr></table></body></html>';
 
   const namaFail = ('Laporan ' + d.program + (d.tarikh ? ' (' + d.tarikh + ')' : '')).replace(/[\\/:*?"<>|]/g, '-') + '.pdf';
@@ -1854,8 +1896,8 @@ function luluskanPengguna(q, u) {
   if (q.lulus) {
     update_('Pengguna', g.id, { status: 'AKTIF', dikemaskini: now_() });
     log_(u, '', '', 'LULUS PENDAFTARAN', g.nama);
-    hantarEmel_(g.emel, 'Akaun e-Panitia anda telah diluluskan',
-      '<p>Assalamualaikum dan salam sejahtera ' + esc_(g.nama) + ',</p><p>Pendaftaran akaun e-Panitia anda telah <b>diluluskan</b>. ' +
+    hantarEmel_(g.emel, 'Akaun e-Kurikulum anda telah diluluskan',
+      '<p>Assalamualaikum dan salam sejahtera ' + esc_(g.nama) + ',</p><p>Pendaftaran akaun e-Kurikulum anda telah <b>diluluskan</b>. ' +
       'Anda kini boleh log masuk menggunakan emel <b>' + esc_(g.emel) + '</b> dan kata laluan yang anda tetapkan semasa mendaftar.</p>' +
       '<p>Keahlian panitia yang anda pilih akan disahkan oleh Ketua Panitia masing-masing.</p>');
   } else {
@@ -1915,6 +1957,11 @@ function simpanTetapan(q, u) {
     dm.forEach(x => mesti_(/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(x), 'Domain emel tidak sah: ' + x + '. Contoh: moe-dl.edu.my'));
     setTetapan_('domainEmel', dm.join(', '));
   }
+  if (d.aksesKurikulum !== undefined) {
+    const ada = {};
+    rows_('Pengguna').forEach(x => { ada[x.id] = 1; });
+    setTetapan_('aksesKurikulum', String(d.aksesKurikulum).split(/[\s,]+/).filter(id => ada[id]).join(','));
+  }
   ['emelPeringatan', 'benamkan'].forEach(k => { if (d[k] !== undefined) setTetapan_(k, String(d[k]).toUpperCase() === 'YA' ? 'YA' : 'TIDAK'); });
   if (d.jadualCsvUrl !== undefined) {
     const url = bersih_(d.jadualCsvUrl, 600);
@@ -1954,33 +2001,51 @@ function peringatanTugasan() {
   if (String(tetapan_().emelPeringatan || 'YA').toUpperCase() === 'TIDAK') { selesai_(); Logger.log('Emel peringatan dimatikan dalam Tetapan.'); return 0; }
   const hariIni = Utilities.formatDate(new Date(), ZON, 'yyyy-MM-dd');
   const beza = d => Math.round((Date.parse(d + 'T00:00:00Z') - Date.parse(hariIni + 'T00:00:00Z')) / 864e5);
+  const sah = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') && HARI_PERINGATAN.indexOf(beza(d)) >= 0;
   const fail = rows_('Fail').filter(f => f.status === 'AKTIF' && f.tugasanId);
+  const panitia = senaraiAktif_();
   const perGuru = {};
+  const tambah = (u, item) => { if (u && u.emel && aktif_(u)) (perGuru[u.id] = perGuru[u.id] || { u, senarai: [] }).senarai.push(item); };
+  const fol = n => ', Folder ' + ('0' + n).slice(-2);
+
+  // 1. Dokumen wajib panitia (setiap ahli)
   rows_('Tugasan').forEach(tg => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(tg.tarikhAkhir)) return;
-    const b = beza(tg.tarikhAkhir);
-    if (HARI_PERINGATAN.indexOf(b) < 0) return;
-    const p = senaraiAktif_().find(x => x.id === tg.panitiaId);
+    if (!sah(tg.tarikhAkhir)) return;
+    const p = panitia.find(x => x.id === tg.panitiaId);
     if (!p) return;
     ahliPanitia_(p).forEach(m => {
-      if (!m.emel || fail.some(f => f.tugasanId === tg.id && f.pemilikId === m.id)) return;
-      (perGuru[m.id] = perGuru[m.id] || { u: m, senarai: [] }).senarai.push({ tg, p, b });
+      if (fail.some(f => f.tugasanId === tg.id && f.pemilikId === m.id)) return;
+      tambah(m, { tajuk: tg.tajuk, sumber: 'Dokumen wajib Panitia ' + p.nama + fol(tg.folderNo), tarikh: tg.tarikhAkhir, b: beza(tg.tarikhAkhir) });
     });
   });
+  // 2. Dokumen wajib sekolah (Ketua Panitia & Setiausaha panitia yang belum menghantar)
+  rows_('DokSekolah').filter(d => d.status === 'AKTIF' && sah(d.tarikhAkhir)).forEach(d => {
+    panitia.forEach(p => {
+      if (fail.some(f => f.tugasanId === d.id && f.panitiaId === p.id)) return;
+      [p.ketuaId, p.setiausahaId].filter(Boolean).forEach(id => tambah(userById_(id),
+        { tajuk: d.tajuk, sumber: 'Dokumen wajib sekolah, Panitia ' + p.nama + fol(d.folderNo), tarikh: d.tarikhAkhir, b: beza(d.tarikhAkhir) }));
+    });
+  });
+  // 3. Tindakan susulan JK Kurikulum
+  const mesy = {};
+  rows_('Mesyuarat').forEach(m => { if (m.status !== 'PADAM') mesy[m.id] = m; });
+  rows_('Tindakan').filter(t => t.status !== 'SELESAI' && mesy[t.mesyuaratId] && sah(t.tarikhAkhir)).forEach(t => {
+    tambah(userById_(t.pemilikId), { tajuk: t.perkara, sumber: 'Tindakan ' + mesy[t.mesyuaratId].tajuk, tarikh: t.tarikhAkhir, b: beza(t.tarikhAkhir) });
+  });
+
   let n = 0;
   Object.keys(perGuru).forEach(id => {
     const { u, senarai } = perGuru[id];
     senarai.sort((x, y) => x.b - y.b);
     const bila = b => b === 0 ? '<b style="color:#B83A2B">HARI INI</b>' : b === 1 ? '<b style="color:#B83A2B">esok</b>' : 'dalam ' + b + ' hari';
-    const isi = '<p>Salam sejahtera ' + esc_(u.nama) + ',</p><p>Dokumen wajib berikut <b>belum dihantar</b> melalui e-Panitia:</p><ul>' +
-      senarai.map(x => '<li style="margin-bottom:6px"><b>' + esc_(x.tg.tajuk) + '</b> — Panitia ' + esc_(x.p.nama) +
-        ', Folder ' + ('0' + x.tg.folderNo).slice(-2) + '<br><span style="color:#44545f">Tarikh akhir ' +
-        Utilities.formatDate(new Date(x.tg.tarikhAkhir + 'T12:00:00Z'), ZON, 'dd/MM/yyyy') + ' (' + bila(x.b) + ')</span></li>').join('') +
-      '</ul><p>Buka panitia berkenaan dan tekan butang <b>Hantar</b> pada senarai "Dokumen wajib saya".</p>';
+    const isi = '<p>Salam sejahtera ' + esc_(u.nama) + ',</p><p>Tugasan berikut <b>belum selesai</b> dalam e-Kurikulum:</p><ul>' +
+      senarai.map(x => '<li style="margin-bottom:6px"><b>' + esc_(x.tajuk) + '</b><br><span style="color:#44545f">' + esc_(x.sumber) +
+        ' · tarikh akhir ' + Utilities.formatDate(new Date(x.tarikh + 'T12:00:00Z'), ZON, 'dd/MM/yyyy') + ' (' + bila(x.b) + ')</span></li>').join('') +
+      '</ul><p>Buka aplikasi dan lihat senarai <b>Tugasan saya</b> di Laman Utama.</p>';
     const segera = senarai[0].b <= 1 ? '[Segera] ' : '';
-    if (hantarEmel_(u.emel, segera + 'Peringatan dokumen wajib panitia (' + senarai.length + ')', isi)) n++;
+    if (hantarEmel_(u.emel, segera + 'Peringatan tugasan kurikulum (' + senarai.length + ')', isi)) n++;
   });
-  if (n) log_('Sistem', '', '', 'PERINGATAN EMEL', n + ' guru diingatkan tentang dokumen wajib');
+  if (n) log_('Sistem', '', '', 'PERINGATAN EMEL', n + ' guru diingatkan tentang tugasan kurikulum');
   selesai_();
   Logger.log('✅ Emel peringatan dihantar kepada ' + n + ' guru. Baki kuota emel hari ini: ' + MailApp.getRemainingDailyQuota());
   return n;
@@ -2191,6 +2256,10 @@ function simpanLaporan(q, u) {
   } else {
     insert_('Laporan', rec);
   }
+  if (q.programId) {
+    const pg = rows_('Program').find(x => x.id === q.programId && x.panitiaId === p.id && x.status === 'AKTIF');
+    if (pg) update_('Program', pg.id, { laporanId: id, dikemaskini: now_() });
+  }
   log_(u, p.id, '10', lama ? 'KEMAS KINI OPR' : 'LAPORAN OPR', d.tajuk);
   return { laporan: laporanPub_(rec), fail: failPub_(failRec) };
 }
@@ -2290,6 +2359,241 @@ function oprHtml_(p, d, foto, t) {
     '<table style="margin-top:6px">' + grid + '</table>' +
     '<table style="margin-top:8px"><tr><td style="width:60%;vertical-align:top;font-size:' + (fs - 0.5) + 'pt">' +
     '<b style="color:#145C43">DISEDIAKAN OLEH:</b><br><b>' + esc_(d.disediakanOleh.toUpperCase()) + '</b></td>' +
-    '<td style="text-align:right;vertical-align:bottom;color:#6a7771;font-size:7.5pt">Dijana melalui e-Panitia<br>' +
+    '<td style="text-align:right;vertical-align:bottom;color:#6a7771;font-size:7.5pt">Dijana melalui e-Kurikulum<br>' +
     Utilities.formatDate(new Date(), ZON, 'dd/MM/yyyy HH:mm') + '</td></tr></table></body></html>';
+}
+
+/* =====================================================================
+ *  E-KURIKULUM FASA 1: TAKWIM, JK KURIKULUM, TINDAKAN SUSULAN,
+ *  DOKUMEN WAJIB SEKOLAH DAN PAPAN PEMUKA KURIKULUM
+ *  ID rekod baharu dijana oleh klien (paparan serta-merta / outbox),
+ *  disahkan formatnya di sini.
+ * ===================================================================== */
+function idBaru_(id, jadual) {
+  id = String(id || '');
+  mesti_(/^[A-Za-z0-9_]{8,40}$/.test(id), 'ID rekod tidak sah.');
+  mesti_(!rows_(jadual).some(x => x.id === id), 'Rekod sudah wujud.');
+  return id;
+}
+function tarikhWajib_(s, msg) { const t = tarikhSah_(s); mesti_(t, msg || 'Isi tarikh yang sah.'); return t; }
+
+function programPub_(x, nmP) {
+  return { id: x.id, panitiaId: x.panitiaId, panitia: x.panitiaId ? (nmP[x.panitiaId] || '') : '', tajuk: x.tajuk, kategori: x.kategori,
+    tarikhMula: x.tarikhMula, tarikhTamat: x.tarikhTamat, masa: x.masa, tempat: x.tempat, catatan: x.catatan, laporanId: x.laporanId,
+    diciptaId: x.diciptaId, diciptaOleh: x.diciptaOleh };
+}
+function mesyuaratPub_(m) {
+  return { id: m.id, tahun: m.tahun, bil: Number(m.bil) || 0, tajuk: m.tajuk, tarikh: m.tarikh, masa: m.masa, tempat: m.tempat, status: m.status,
+    minitUrl: m.minitUrl, minitDriveId: m.minitDriveId, minitNama: m.minitNama, catatan: m.catatan };
+}
+function tindakanPub_(t) {
+  return { id: t.id, mesyuaratId: t.mesyuaratId, perkara: t.perkara, pemilikId: t.pemilikId, pemilikNama: t.pemilikNama,
+    tarikhAkhir: t.tarikhAkhir, status: t.status || 'BELUM', catatan: t.catatan, selesaiPada: t.selesaiPada, selesaiOleh: t.selesaiOleh };
+}
+
+/** Data tab Takwim & Kurikulum (dihantar dalam sync) */
+function kurikulumData_(u) {
+  const pk = pentadbirKur_(u);
+  const panitia = senaraiAktif_();
+  const nmP = {};
+  panitia.forEach(p => { nmP[p.id] = p.nama; });
+  const dariTahun = String(new Date().getFullYear() - 1);
+  const program = rows_('Program').filter(x => x.status === 'AKTIF' && String(x.tarikhMula).slice(0, 4) >= dariTahun && (!x.panitiaId || nmP[x.panitiaId]))
+    .map(x => programPub_(x, nmP));
+  const mesy = rows_('Mesyuarat').filter(m => m.status !== 'PADAM');
+  const adaMesy = {};
+  mesy.forEach(m => { adaMesy[m.id] = 1; });
+  const tindakanSemua = rows_('Tindakan').filter(t => adaMesy[t.mesyuaratId]);
+  const panitiaSaya = panitia.filter(p => p.ketuaId === u.id || p.setiausahaId === u.id).map(p => p.id);
+  const dok = rows_('DokSekolah').filter(d => d.status === 'AKTIF');
+  const failTanda = rows_('Fail').filter(f => f.status === 'AKTIF' && f.tugasanId);
+  const sasaranDok = pk ? panitia : panitia.filter(p => panitiaSaya.indexOf(p.id) >= 0);
+  const out = {
+    akses: pk ? 'PENTADBIR' : 'GURU',
+    program,
+    mesyuarat: mesy.map(mesyuaratPub_).sort((a, b) => (b.tarikh > a.tarikh ? 1 : -1)),
+    tindakan: (pk ? tindakanSemua : tindakanSemua.filter(t => t.pemilikId === u.id)).map(tindakanPub_),
+    dokSekolah: dok.map(d => ({
+      id: d.id, tajuk: d.tajuk, folderNo: Number(d.folderNo) || 1, tarikhAkhir: d.tarikhAkhir, catatan: d.catatan,
+      status: sasaranDok.map(p => {
+        const f = failTanda.find(x => x.tugasanId === d.id && x.panitiaId === p.id);
+        return { panitiaId: p.id, nama: p.nama, siap: !!f, dicipta: f ? f.dicipta : '' };
+      })
+    })),
+    panitiaSaya
+  };
+  if (pk) {
+    out.papan = papanKurikulum_(panitia, dok, failTanda);
+    out.guru = rows_('Pengguna').filter(aktif_).map(x => ({ id: x.id, nama: x.nama })).sort((a, b) => a.nama.localeCompare(b.nama));
+  }
+  return out;
+}
+
+function papanKurikulum_(panitia, dok, failTanda) {
+  const th = String(new Date().getFullYear());
+  const lap = rows_('Laporan').filter(r => r.status === 'AKTIF' && String(r.tarikhMula || r.dicipta).slice(0, 4) === th);
+  const fail = rows_('Fail').filter(f => f.status === 'AKTIF');
+  return panitia.map(p => {
+    const fP = fail.filter(f => f.panitiaId === p.id);
+    const kp = userById_(p.ketuaId);
+    return {
+      id: p.id, nama: p.nama, kod: p.kod, ketua: kp ? kp.nama : '', bilAhli: ahliPanitia_(p).length, bilFail: fP.length,
+      opr: lap.filter(r => r.panitiaId === p.id).length,
+      dokSiap: dok.filter(d => failTanda.some(f => f.tugasanId === d.id && f.panitiaId === p.id)).length, dokJumlah: dok.length,
+      terakhir: fP.reduce((m, f) => (f.dicipta > m ? f.dicipta : m), '')
+    };
+  });
+}
+
+/* ---------- Takwim: program ---------- */
+function bolehUrusProgram_(u, x) {
+  if (pentadbirKur_(u)) return true;
+  if (x.diciptaId === u.id) return true;
+  if (!x.panitiaId) return false;
+  const p = rows_('Panitia').find(y => y.id === x.panitiaId && y.status !== 'PADAM');
+  return !!p && akses_(u, p).su;
+}
+function simpanProgram(q, u) {
+  const panitiaId = bersih_(q.panitiaId, 20);
+  if (panitiaId) mesti_(akses_(u, panitia_(panitiaId)).su || pentadbirKur_(u), 'Hanya Ketua Panitia, Setiausaha atau pentadbir boleh menambah program panitia.');
+  else kurAdmin_(u);
+  const d = {
+    panitiaId, tajuk: bersih_(q.tajuk, 200), kategori: bersih_(q.kategori, 40).toUpperCase() || 'PROGRAM',
+    tarikhMula: tarikhWajib_(q.tarikhMula, 'Isi tarikh program.'), tarikhTamat: tarikhSah_(q.tarikhTamat),
+    masa: bersih_(q.masa, 60), tempat: bersih_(q.tempat, 200), catatan: bersih_(q.catatan, 500), dikemaskini: now_()
+  };
+  mesti_(d.tajuk, 'Isi nama program.');
+  if (d.tarikhTamat && d.tarikhTamat < d.tarikhMula) d.tarikhTamat = '';
+  const lama = rows_('Program').find(x => x.id === q.id && x.status === 'AKTIF');
+  if (lama) {
+    mesti_(bolehUrusProgram_(u, lama), 'Anda tiada kebenaran mengubah program ini.');
+    update_('Program', lama.id, d);
+    log_(u, panitiaId, '', 'KEMAS KINI PROGRAM', d.tajuk);
+  } else {
+    insert_('Program', Object.assign(d, { id: idBaru_(q.id, 'Program'), laporanId: '', diciptaId: u.id, diciptaOleh: u.nama, dicipta: now_(), status: 'AKTIF' }));
+    log_(u, panitiaId, '', 'PROGRAM BAHARU', d.tajuk + ' (' + d.tarikhMula + ')');
+  }
+  return { ok: true };
+}
+function padamProgram(q, u) {
+  const x = rows_('Program').find(y => y.id === q.id && y.status === 'AKTIF');
+  mesti_(x, 'Program tidak dijumpai.');
+  mesti_(bolehUrusProgram_(u, x), 'Anda tiada kebenaran memadam program ini.');
+  update_('Program', x.id, { status: 'BATAL', dikemaskini: now_() });
+  log_(u, x.panitiaId, '', 'PADAM PROGRAM', x.tajuk);
+  return { ok: true };
+}
+
+/* ---------- JK Kurikulum: mesyuarat, minit, tindakan susulan ---------- */
+function simpanMesyuarat(q, u) {
+  kurAdmin_(u);
+  const tarikh = tarikhWajib_(q.tarikh, 'Isi tarikh mesyuarat.');
+  const bil = Math.max(1, Math.min(20, Math.floor(Number(q.bil)) || 1));
+  const tahun = tarikh.slice(0, 4);
+  const d = {
+    tahun, bil, tarikh, tajuk: bersih_(q.tajuk, 200) || ('Mesyuarat JK Kurikulum Bil. ' + bil + '/' + tahun),
+    masa: bersih_(q.masa, 60), tempat: bersih_(q.tempat, 200), catatan: bersih_(q.catatan, 500),
+    status: q.status === 'SELESAI' ? 'SELESAI' : 'DIRANCANG', dikemaskini: now_()
+  };
+  if (q.minitUrl !== undefined) {
+    const url = bersih_(q.minitUrl, 1000);
+    mesti_(!url || /^https?:\/\/\S+$/i.test(url), 'Pautan minit mesti bermula dengan http:// atau https://');
+    d.minitUrl = url;
+  }
+  const lama = rows_('Mesyuarat').find(x => x.id === q.id && x.status !== 'PADAM');
+  if (lama) update_('Mesyuarat', lama.id, d);
+  else insert_('Mesyuarat', Object.assign(d, { id: idBaru_(q.id, 'Mesyuarat'), diciptaOleh: u.nama, dicipta: now_() }));
+  log_(u, '', '', lama ? 'KEMAS KINI MESYUARAT' : 'MESYUARAT BAHARU', d.tajuk);
+  return { ok: true };
+}
+function padamMesyuarat(q, u) {
+  kurAdmin_(u);
+  const m = rows_('Mesyuarat').find(x => x.id === q.id && x.status !== 'PADAM');
+  mesti_(m, 'Mesyuarat tidak dijumpai.');
+  update_('Mesyuarat', m.id, { status: 'PADAM', dikemaskini: now_() });
+  log_(u, '', '', 'PADAM MESYUARAT', m.tajuk);
+  return { ok: true };
+}
+/** Minit dimuat naik ke folder Drive _JK_KURIKULUM (tidak dikongsi awam) */
+function muatNaikMinit(q, u) {
+  kurAdmin_(u);
+  const m = rows_('Mesyuarat').find(x => x.id === q.id && x.status !== 'PADAM');
+  mesti_(m, 'Mesyuarat tidak dijumpai. Tunggu sebentar sehingga mesyuarat disimpan, kemudian cuba lagi.');
+  const f = q.fail || {};
+  const saiz = saizB64_(f.data);
+  mesti_(saiz > 0, 'Tiada fail dipilih.');
+  mesti_(saiz <= MAKS_FAIL_MB * 1048576, 'Saiz fail melebihi had ' + MAKS_FAIL_MB + 'MB.');
+  const file = simpanBlob_(folderSistem_('_JK_KURIKULUM'), f.data, f.mime, bersih_(f.nama, 150) || ('Minit ' + m.tajuk));
+  const lama = m.minitDriveId;
+  update_('Mesyuarat', m.id, { minitDriveId: file.getId(), minitNama: file.getName(), minitMime: f.mime || '', status: 'SELESAI', dikemaskini: now_() });
+  buangDrive_(lama);
+  log_(u, '', '', 'MINIT JK', m.tajuk);
+  return mesyuaratPub_(rows_('Mesyuarat').find(x => x.id === m.id));
+}
+function lihatMinit(q, u) {
+  const m = rows_('Mesyuarat').find(x => x.id === q.id && x.status !== 'PADAM');
+  mesti_(m && m.minitDriveId, 'Minit belum dimuat naik.');
+  let fd;
+  try { fd = DriveApp.getFileById(m.minitDriveId); } catch (e) { throw new Error('Fail minit tidak lagi wujud dalam Google Drive.'); }
+  mesti_(fd.getSize() < 20 * 1048576, 'Fail minit terlalu besar untuk dipaparkan.');
+  const b = fd.getBlob();
+  return { nama: b.getName(), mime: b.getContentType(), data: Utilities.base64Encode(b.getBytes()) };
+}
+function simpanTindakan(q, u) {
+  kurAdmin_(u);
+  const m = rows_('Mesyuarat').find(x => x.id === q.mesyuaratId && x.status !== 'PADAM');
+  mesti_(m, 'Mesyuarat tidak dijumpai.');
+  const pemilik = q.pemilikId ? userById_(q.pemilikId) : null;
+  const d = {
+    mesyuaratId: m.id, perkara: bersih_(q.perkara, 400), pemilikId: pemilik ? pemilik.id : '',
+    pemilikNama: pemilik ? pemilik.nama : bersih_(q.pemilikNama, 120), tarikhAkhir: tarikhSah_(q.tarikhAkhir), catatan: bersih_(q.catatan, 400)
+  };
+  mesti_(d.perkara, 'Isi perkara tindakan.');
+  mesti_(d.pemilikNama, 'Pilih atau isi nama yang bertanggungjawab.');
+  const lama = rows_('Tindakan').find(x => x.id === q.id);
+  if (lama) update_('Tindakan', lama.id, d);
+  else insert_('Tindakan', Object.assign(d, { id: idBaru_(q.id, 'Tindakan'), status: 'BELUM', dicipta: now_() }));
+  log_(u, '', '', lama ? 'KEMAS KINI TINDAKAN' : 'TINDAKAN BAHARU', d.perkara + ' → ' + d.pemilikNama);
+  return { ok: true };
+}
+function statusTindakan(q, u) {
+  const t = rows_('Tindakan').find(x => x.id === q.id);
+  mesti_(t, 'Tindakan tidak dijumpai.');
+  mesti_(t.pemilikId === u.id || pentadbirKur_(u), 'Hanya penerima tindakan atau pentadbir boleh mengemas kini status.');
+  const selesai = q.status === 'SELESAI';
+  const patch = { status: selesai ? 'SELESAI' : 'BELUM', selesaiPada: selesai ? now_() : '', selesaiOleh: selesai ? u.nama : '' };
+  if (q.catatan !== undefined) patch.catatan = bersih_(q.catatan, 400);
+  update_('Tindakan', t.id, patch);
+  log_(u, '', '', selesai ? 'TINDAKAN SELESAI' : 'TINDAKAN DIBUKA SEMULA', t.perkara);
+  return { ok: true };
+}
+function padamTindakan(q, u) {
+  kurAdmin_(u);
+  const t = rows_('Tindakan').find(x => x.id === q.id);
+  mesti_(t, 'Tindakan tidak dijumpai.');
+  deleteWhere_('Tindakan', x => x.id === t.id);
+  log_(u, '', '', 'PADAM TINDAKAN', t.perkara);
+  return { ok: true };
+}
+
+/* ---------- Dokumen wajib sekolah (satu penghantaran bagi setiap panitia) ---------- */
+function simpanDokSekolah(q, u) {
+  kurAdmin_(u);
+  let no = Math.floor(Number(q.folderNo)) || 4;
+  if (no < 1 || no > 10) no = 4;
+  const d = { tajuk: bersih_(q.tajuk, 150), folderNo: no, tarikhAkhir: tarikhSah_(q.tarikhAkhir), catatan: bersih_(q.catatan, 400) };
+  mesti_(d.tajuk, 'Isi nama dokumen.');
+  const lama = rows_('DokSekolah').find(x => x.id === q.id && x.status === 'AKTIF');
+  if (lama) update_('DokSekolah', lama.id, d);
+  else insert_('DokSekolah', Object.assign(d, { id: idBaru_(q.id, 'DokSekolah'), diciptaOleh: u.nama, dicipta: now_(), status: 'AKTIF' }));
+  log_(u, '', String(no), lama ? 'KEMAS KINI DOK. WAJIB SEKOLAH' : 'DOK. WAJIB SEKOLAH', d.tajuk);
+  return { ok: true };
+}
+function padamDokSekolah(q, u) {
+  kurAdmin_(u);
+  const d = rows_('DokSekolah').find(x => x.id === q.id && x.status === 'AKTIF');
+  mesti_(d, 'Dokumen tidak dijumpai.');
+  update_('DokSekolah', d.id, { status: 'PADAM' });
+  log_(u, '', '', 'PADAM DOK. WAJIB SEKOLAH', d.tajuk);
+  return { ok: true };
 }

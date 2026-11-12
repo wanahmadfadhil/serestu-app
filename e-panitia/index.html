@@ -7,8 +7,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="e-Panitia">
-<title>e-Panitia | Sistem Pengurusan Panitia</title>
+<meta name="apple-mobile-web-app-title" content="e-Kurikulum">
+<title>e-Kurikulum | Sistem Pengurusan Panitia</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -42,7 +42,7 @@ a{color:var(--green)}
 .t-av{border-radius:50%;box-shadow:0 0 0 2px var(--yellow)}
 .banner{background:var(--yellow-soft);color:#6B4F00;font-size:13px;padding:8px 16px;border-bottom:1px solid #EAD38A}
 main{padding:16px}
-.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:680px;z-index:30;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom)}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:680px;z-index:30;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:env(safe-area-inset-bottom)}
 .nav button{height:var(--nav-h);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11.5px;color:var(--muted);position:relative}
 .nav button[aria-current="page"]{color:var(--green);font-weight:600}
 .nav button[aria-current="page"]::before{content:'';position:absolute;top:0;left:30%;right:30%;height:3px;border-radius:0 0 3px 3px;background:var(--yellow)}
@@ -487,13 +487,78 @@ body.mod-pemantau .app{padding-bottom:40px}
 .slot-opr{position:relative}
 .slot-buang{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;background:rgba(28,43,57,.82);color:#fff;display:grid;place-items:center}
 .slot-buang[hidden]{display:none}
+
+/* ---------- e-Kurikulum Fasa 1 ---------- */
+.seg.empat{grid-template-columns:repeat(4,1fr)}
+.seg.empat button{padding:9px 2px;font-size:13px}
+.sub-panitia select{margin-bottom:10px}
+.sub-panitia .seg{margin-bottom:14px}
+.tugas-saya,.notis{list-style:none;display:grid;gap:10px}
+.tugas-saya li,.notis li{display:flex;gap:10px;align-items:center}
+.notis li span{flex:1;font-size:13.5px}
+.tugas-saya .tg-isi{flex:1;min-width:0;display:flex;flex-direction:column}
+.tugas-saya .tg-isi b{font-weight:500;font-size:14px}
+.tugas-saya .tg-isi small{font-size:12px;color:var(--muted)}
+.dot-t{width:10px;height:10px;border-radius:50%;flex:none}
+.dot-t.merah{background:var(--red)}.dot-t.kuning{background:var(--yellow)}.dot-t.kelabu{background:var(--line)}
+.tk-alat{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.tk-alat select{flex:1;min-width:0}
+.tk-kal{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:12px}
+.tk-kal-atas{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.tk-kal-atas h3{font-size:16px;font-weight:600}
+.tk-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;text-align:center}
+.tk-grid .hd{font-size:11px;color:var(--muted);padding:2px 0 4px}
+.tk-hari{height:42px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:13.5px;gap:2px}
+.tk-hari:hover{background:var(--surface-2)}
+.tk-hari.kini{background:var(--green-soft);color:var(--green);font-weight:600}
+.tk-hari[aria-pressed="true"]{background:var(--green);color:#fff;font-weight:600}
+.tk-titik{display:flex;gap:2px;height:5px}
+.tk-titik i{width:5px;height:5px;border-radius:50%;background:var(--carta)}
+.tk-titik i.m{background:var(--yellow)}
+.tk-titik i.r{background:var(--red)}
+.tk-senarai{display:grid;gap:8px}
+.tk-item{display:flex;gap:12px;align-items:center;text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px}
+.blok .tk-item{border:0;padding:6px 0;border-radius:0;background:none}
+.tk-item:hover{border-color:var(--green)}
+.tk-tarikh{width:50px;flex:none;text-align:center;padding:5px 0;border-radius:10px;background:var(--green-soft);color:var(--green)}
+.tk-tarikh.m{background:var(--yellow-soft);color:#7A5A00}
+.tk-tarikh b{display:block;font-size:16px;line-height:1.1}
+.tk-tarikh small{font-size:10.5px;font-weight:600}
+.tk-isi{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.tk-isi b{font-weight:500;font-size:14px;line-height:1.3}
+.tk-isi small{font-size:12px;color:var(--muted)}
+.tk-isi .tk-amaran{color:#8A2A1F}
+.tk-amaran-kotak{background:var(--yellow-soft);border:1px solid #EFD98C;color:#5E4A12;border-radius:12px;padding:10px 12px;font-size:13px}
+.kur-baris{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;text-align:left;width:100%;padding:10px 0;border-bottom:1px solid var(--line)}
+.kur-baris:last-child{border-bottom:0}
+.kur-baris b{font-weight:500;font-size:14px}
+.kur-baris small{grid-column:1/-1;font-size:12px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.kur-trek{grid-column:1/-1;height:8px;display:block}
+.kur-trek span{display:block;height:100%;background:var(--carta);border-radius:0 4px 4px 0}
+.seg.tiga button{font-size:13.5px;padding:10px 4px;white-space:nowrap}
+.mesy-kad{display:flex;flex-direction:column;gap:4px;text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 14px}
+.mesy-kad:hover{border-color:var(--green)}
+.mesy-kad .bil{font-size:11.5px;font-weight:600;letter-spacing:.06em;color:var(--green)}
+.mesy-kad b{font-weight:600;font-size:14.5px}
+.mesy-kad small{font-size:12.5px;color:var(--ink-2)}
+.tindakan-senarai{list-style:none;display:grid;gap:8px}
+.tindakan-senarai li{display:flex;gap:10px;align-items:flex-start;background:var(--surface-2);border-radius:12px;padding:10px}
+.tindakan-senarai .isi{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tindakan-senarai .isi b{font-weight:500;font-size:14px}
+.tindakan-senarai .isi small{font-size:12px;color:var(--muted)}
+.tindakan-senarai li.siap .isi b{text-decoration:line-through;color:var(--muted)}
+.cek-btn{width:30px;height:30px;flex:none;border-radius:8px;border:1.5px solid #AFC0B5;background:#fff;display:grid;place-items:center;color:#fff}
+.cek-btn[aria-pressed="true"]{background:var(--green);border-color:var(--green)}
+.akses-kur{display:grid;gap:6px;max-height:220px;overflow:auto;margin-top:6px}
+.status-panitia{list-style:none;display:grid;gap:6px}
+.status-panitia li{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:8px 10px;border-radius:10px;background:var(--surface-2)}
 </style>
 </head>
 <body>
 <div id="auth"></div>
 <div id="app" class="app" hidden>
   <header class="topbar">
-    <div class="t-teks"><div class="t-sek" id="tSek"></div><h1 id="tTajuk">e-Panitia</h1></div>
+    <div class="t-teks"><div class="t-sek" id="tSek"></div><h1 id="tTajuk">e-Kurikulum</h1></div>
     <button class="t-av" id="tAv" data-act="tab" data-tab="profil" aria-label="Profil saya"></button>
   </header>
   <div class="banner" id="bannerLuar" hidden>Tiada sambungan internet. Data dipapar daripada simpanan terakhir.</div>
@@ -502,7 +567,8 @@ body.mod-pemantau .app{padding-bottom:40px}
 <nav class="nav" id="nav" hidden aria-label="Navigasi utama">
   <button data-act="tab" data-tab="home"></button>
   <button data-act="tab" data-tab="dash"></button>
-  <button data-act="tab" data-tab="folder"></button>
+  <button data-act="tab" data-tab="takwim"></button>
+  <button data-act="tab" data-tab="kurikulum"></button>
   <button data-act="tab" data-tab="profil"></button>
 </nav>
 <button class="fab" id="fab" hidden data-act="fab" aria-label="Tambah bahan baharu"></button>
@@ -568,7 +634,8 @@ const IK = {
   share: '<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8.2 10.8 7.6-3.6M8.2 13.2l7.6 3.6"/>',
   refresh: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
   clip: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 11l2 2 4-4M9 17h6"/>',
-  phoneApp: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>'
+  phoneApp: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+  buku: '<path d="M4 19.5V5a2 2 0 0 1 2-2h14v15H6a2 2 0 0 0-2 2z"/><path d="M8 7h8M8 11h6"/>'
 };
 const ic = (n, s = 20) => `<svg class="ik" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IK[n] || ''}</svg>`;
 
@@ -709,7 +776,7 @@ function avatar(u, size = 40) {
   const id = u && u.fotoId;
   return `<span class="av" style="--s:${size}px" aria-hidden="true">${esc(inisial(u && u.nama))}${id ? `<img data-img="${esc(id)}" alt="">` : ''}</span>`;
 }
-function tajuk(t) { $('#tTajuk').textContent = t; document.title = t + ' | e-Panitia'; }
+function tajuk(t) { $('#tTajuk').textContent = t; document.title = t + ' | e-Kurikulum'; }
 function setLuar(on) { $('#bannerLuar').hidden = !on; }
 function kosongHTML(ikon, teks, butang = '') { return `<div class="kosong">${ic(ikon, 36)}<p>${teks}</p>${butang}</div>`; }
 function rangka(n = 3) { return Array.from({ length: n }, () => '<div class="rangka"></div>').join(''); }
@@ -864,11 +931,12 @@ async function boot() {
   if (prm.pemantau) return mulaPemantau(prm.pemantau);
   if (!S.token) return viewAuth();
   const c = store.get('ep_init');
+  S.kur = store.get('ep_kur');
   if (c) {
     setInit(c);
     Object.keys(store.mem).filter(k => k.startsWith('ep_d_')).forEach(k => { const d = store.mem[k]; if (d && d.panitia) { MEM[d.panitia.id] = d; S.masaMuat[d.panitia.id] = Date.now(); } });
     tunjukShell(); render();
-  } else $('#auth').innerHTML = `<div class="auth"><div class="auth-atas">${rakHiasan()}<h1>e-Panitia</h1><p>Memuatkan data…</p></div></div>`;
+  } else $('#auth').innerHTML = `<div class="auth"><div class="auth-atas">${rakHiasan()}<h1>e-Kurikulum</h1><p>Memuatkan data…</p></div></div>`;
   try {
     hantarOutbox();
     const r = await call('sync', { etag: c ? (store.get('ep_etag') || '') : '', aktif: S.panitiaId }, { senyap: !!c });
@@ -888,7 +956,8 @@ async function boot() {
 function setInit(d) {
   if (d.token) { S.token = d.token; ls.set('ep_token', d.token); delete d.token; }
   if (d.user && ls.get('ep_uid') !== d.user.id) { // akaun lain pada peranti yang sama: buang cache pengguna sebelumnya
-    Object.keys(store.mem).filter(k => /^ep_(d_|jw_|adm|etag)/.test(k)).forEach(k => store.del(k));
+    Object.keys(store.mem).filter(k => /^ep_(d_|jw_|adm|etag|kur)/.test(k)).forEach(k => store.del(k));
+    S.kur = null;
     Object.keys(MEM).forEach(k => delete MEM[k]);
     Object.keys(JWDATA).forEach(k => delete JWDATA[k]);
     S.detail = null; S.adm = null; S.masaMuat = {};
@@ -915,7 +984,7 @@ function tamatSesi() {
 
 function tunjukShell() {
   $('#app').hidden = false; $('#nav').hidden = false;
-  const nav = [['home', 'home', 'Utama'], ['dash', 'dash', 'Panitia'], ['folder', 'folder', 'Folder'], ['profil', 'user', 'Profil']];
+  const nav = [['home', 'home', 'Utama'], ['dash', 'dash', 'Panitia'], ['takwim', 'calendar', 'Takwim'], ['kurikulum', 'buku', 'Kurikulum'], ['profil', 'user', 'Profil']];
   $$('#nav button').forEach((b, i) => { b.innerHTML = ic(nav[i][1], 22) + `<span>${nav[i][2]}</span>`; });
   $('#fab').innerHTML = ic('plus', 28);
 }
@@ -929,7 +998,7 @@ function rakHiasan() {
 async function viewAuth(msg, ok) {
   $('#app').hidden = true; $('#nav').hidden = true; $('#fab').hidden = true;
   $('#auth').innerHTML = `<div class="auth">
-    <div class="auth-atas">${rakHiasan()}<h1>e-Panitia</h1><p id="authSek">Fail panitia digital sekolah anda</p></div>
+    <div class="auth-atas">${rakHiasan()}<h1>e-Kurikulum</h1><p id="authSek">Fail panitia digital sekolah anda</p></div>
     <div class="auth-panel">
       <div class="seg" role="tablist">
         <button role="tab" aria-selected="true" data-act="authTab" data-t="masuk">Log masuk</button>
@@ -1019,11 +1088,11 @@ const bacaSubjek = root => $$('.sj.on', root).map(el => ({ panitiaId: el.dataset
    ===================================================================== */
 function render() {
   if (S.pemantau) return renderPemantau();
-  $$('#nav button').forEach(b => b.setAttribute('aria-current', b.dataset.tab === S.tab || (S.tab === 'admin' && b.dataset.tab === 'profil') || (S.tab === 'laporan' && b.dataset.tab === 'dash') ? 'page' : 'false'));
+  $$('#nav button').forEach(b => b.setAttribute('aria-current', b.dataset.tab === S.tab || (S.tab === 'admin' && b.dataset.tab === 'profil') || (['laporan', 'folder', 'ahli'].includes(S.tab) && b.dataset.tab === 'dash') ? 'page' : 'false'));
   $('#tSek').textContent = (S.data && S.data.tetapan.namaSekolah) || '';
   $('#tAv').innerHTML = avatar(S.user, 36);
   kemasFab();
-  ({ home: viewHome, dash: viewDash, folder: viewFolder, profil: viewProfil, admin: viewAdmin, laporan: viewLaporan }[S.tab] || viewHome)();
+  ({ home: viewHome, dash: viewDash, ahli: viewDash, folder: viewFolder, profil: viewProfil, admin: viewAdmin, laporan: viewLaporan, takwim: viewTakwim, kurikulum: viewKurikulum }[S.tab] || viewHome)();
   hydrateImgs();
   if (S.user && S.user.wajibTukar === 'YA' && !$('.sheet-wrap[data-kunci]')) paparWajibTukar();
 }
@@ -1046,7 +1115,7 @@ function kemasFab() {
 function salam() { const h = new Date().getHours(); return h < 12 ? 'Selamat pagi' : h < 14 ? 'Selamat tengah hari' : h < 19 ? 'Selamat petang' : 'Selamat malam'; }
 function kadPanitia(p) {
   const chip = p.peranan === 'KP' ? '<span class="chip kp">Ketua Panitia</span>' : p.peranan === 'SU' ? '<span class="chip">Setiausaha</span>'
-    : p.peranan === 'MENUNGGU' ? '<span class="chip tunggu">Menunggu</span>' : p.peranan === 'AHLI' ? '<span class="chip">Ahli</span>' : '<span class="chip kelabu">Admin</span>';
+    : p.peranan === 'MENUNGGU' ? '<span class="chip tunggu">Menunggu</span>' : p.peranan === 'AHLI' ? '<span class="chip">Ahli</span>' : '<span class="chip kelabu">Pentadbir</span>';
   return `<button class="kp-kad" data-act="bukaPanitia" data-id="${p.id}">
     <span class="kp-kod">${esc(p.kod || p.nama.slice(0, 2))}</span>
     <span class="kp-isi"><b>${esc(p.nama)}</b>
@@ -1056,7 +1125,7 @@ function kadPanitia(p) {
 }
 function viewHome() {
   tajuk('Laman utama');
-  const d = S.data, u = S.user;
+  const d = S.data, u = S.user, K = S.kur || {};
   const saya = d.panitia.filter(p => p.peranan);
   const kurang = [];
   if (!u.fotoId) kurang.push('foto profil');
@@ -1064,13 +1133,28 @@ function viewHome() {
   if (!u.telefon) kurang.push('nombor telefon');
   if (!u.jawatan || !u.gred) kurang.push('maklumat perkhidmatan');
   if (!d.subjek.length) kurang.push('subjek yang diajar');
+  const peranan = d.panitia.filter(p => p.peranan === 'KP' || p.peranan === 'SU').map(p => `${PERANAN[p.peranan]} ${p.nama}`);
+  if (d.pentadbirKur) peranan.unshift(u.peranan === 'SUPER_ADMIN' ? 'Super Admin' : 'Pentadbir kurikulum');
+  const tugas = tugasanSaya();
+  const minggu = acaraTakwim().filter(a => a.tamat >= hariISO(0) && a.mula <= hariISO(7));
+  const notis = pemberitahuan();
+  const dotTugas = t => !t.tarikh ? 'kelabu' : t.tarikh <= hariISO(1) ? 'merah' : 'kuning';
   $('#main').innerHTML = `
     <section class="hero">
       <p class="hero-hari">${new Date().toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
       <h2>${salam()}, ${esc(namaPendek(u.nama))}</h2>
-      <p class="hero-sub">${saya.length ? `Anda berada dalam ${saya.length} panitia.` : 'Anda belum menyertai mana-mana panitia.'}</p>
+      <p class="hero-sub">${peranan.length ? esc(peranan.join(' · ')) : saya.length ? `Anda berada dalam ${saya.length} panitia.` : 'Anda belum menyertai mana-mana panitia.'}</p>
     </section>
     ${kurang.length ? `<div class="ingat">${ic('clip')}<div><b>Lengkapkan profil anda</b><p>Belum diisi: ${kurang.join(', ')}.</p><button class="btn kecil kuning" data-act="tab" data-tab="profil">Buka profil</button></div></div>` : ''}
+    ${notis.length ? `<section class="blok amaran"><div class="blok-kepala"><h3>Pemberitahuan</h3></div><ul class="notis">${notis.map(n => `<li><span>${esc(n.teks)}</span><button class="btn kecil" data-act="${n.act}" ${n.attr || ''}>${esc(n.butang)}</button></li>`).join('')}</ul></section>` : ''}
+    <section class="blok"><div class="blok-kepala"><h3>Tugasan saya</h3>${tugas.length ? `<span class="chip ${tugas.some(t => dotTugas(t) === 'merah') ? 'merah' : 'tunggu'}">${tugas.length} belum selesai</span>` : ''}</div>
+      ${tugas.length ? `<ul class="tugas-saya">${tugas.slice(0, 8).map(t => `<li><span class="dot-t ${dotTugas(t)}" aria-hidden="true"></span><span class="tg-isi"><b>${esc(t.tajuk)}</b><small>${esc(t.sumber)}${t.tarikh ? ' · tarikh akhir ' + tarikhPendek(t.tarikh) : ''}${t.tarikh && t.tarikh < hariISO(0) ? ' (lewat)' : ''}</small></span>
+        <button class="btn kecil ${t.utama ? 'utama' : ''}" data-act="${t.act}" ${t.attr}>${esc(t.butang)}</button></li>`).join('')}</ul>${tugas.length > 8 ? `<p class="nota" style="margin-top:8px">dan ${tugas.length - 8} lagi.</p>` : ''}`
+        : '<p class="kosong-kecil">Tiada tugasan tertunggak. Syabas!</p>'}
+    </section>
+    <section class="blok"><div class="blok-kepala"><h3>Program minggu ini</h3><button class="btn kecil" data-act="tab" data-tab="takwim">${ic('calendar', 16)}Takwim</button></div>
+      ${minggu.length ? `<div class="tk-senarai">${minggu.map(acaraHTML).join('')}</div>` : '<p class="kosong-kecil">Tiada program dalam 7 hari akan datang.</p>'}
+    </section>
     <h3 class="sek-t">Panitia saya</h3>
     <div class="senarai-p">${saya.map(kadPanitia).join('') || `<div class="blok">${kosongHTML('folder', 'Pilih mata pelajaran yang anda ajar di halaman Profil. Panitia berkaitan akan muncul di sini selepas disahkan.', '<button class="btn utama" data-act="borangProfil">Pilih subjek</button>')}</div>`}</div>
 `;
@@ -1130,14 +1214,15 @@ function terimaSync(r, paksa) {
   if (!r) return false;
   if (r.sama) { Object.keys(MEM).forEach(k => { S.masaMuat[k] = Date.now(); }); return false; }
   if (!paksa && (OUTBOX_JALAN || outbox().length)) return false; // jangan tindih perubahan optimistik
-  const sebelum = tandatangan(S.data) + (S.detail ? tandatangan(S.detail) : '');
+  const sebelum = tandatangan(S.data) + (S.detail ? tandatangan(S.detail) : '') + tandatangan(S.kur);
+  if (r.kur) { S.kur = r.kur; store.set('ep_kur', r.kur); }
   setInit(r.init);
   Object.keys(r.detail || {}).forEach(id => simpanDetail(r.detail[id]));
   store.set('ep_etag', r.etag);
   const ids = [];
   Object.keys(r.detail || {}).forEach(id => r.detail[id].ahli.forEach(a => ids.push(a.fotoId)));
   muatImej(ids);
-  const selepas = tandatangan(S.data) + (S.detail ? tandatangan(S.detail) : '');
+  const selepas = tandatangan(S.data) + (S.detail ? tandatangan(S.detail) : '') + tandatangan(S.kur);
   if (sebelum !== selepas && !S.cartaEdit && !S.pemantau && S.tab !== 'admin') render();
   return true;
 }
@@ -1198,7 +1283,7 @@ async function hantarOutbox() {
 }
 function renderSemasa() {
   if (S.pemantau || S.cartaEdit || !S.detail) return;
-  if (S.tab === 'dash') renderDash(); else if (S.tab === 'folder') renderFolder(); else if (S.tab === 'laporan') renderLaporan();
+  if (S.tab === 'dash' || S.tab === 'ahli') renderDash(); else if (S.tab === 'folder') renderFolder(); else if (S.tab === 'laporan') renderLaporan();
   hydrateImgs();
 }
 function kemasKiraan(pid) {
@@ -1278,8 +1363,10 @@ function pastikanDetail(cb) {
   const id = S.panitiaId;
   const info = id && S.data.panitia.find(p => p.id === id);
   if (!info) {
-    tajuk(S.tab === 'folder' ? 'Folder dokumen' : 'Panitia');
-    $('#main').innerHTML = `<div class="blok">${kosongHTML('folder', 'Belum ada panitia dipilih. Pilih panitia di Laman Utama.', '<button class="btn utama" data-act="tab" data-tab="home">Ke Laman Utama</button>')}</div>`;
+    tajuk('Panitia');
+    const boleh = S.data.panitia.filter(p => p.lihat || p.peranan === 'MENUNGGU');
+    $('#main').innerHTML = boleh.length ? `<h3 class="sek-t" style="margin-top:0">Pilih panitia</h3><div class="senarai-p">${boleh.map(kadPanitia).join('')}</div>`
+      : `<div class="blok">${kosongHTML('folder', 'Anda belum menyertai mana-mana panitia. Pilih mata pelajaran yang anda ajar di halaman Profil.', '<button class="btn utama" data-act="borangProfil">Pilih subjek</button>')}</div>`;
     return;
   }
   if (!info.lihat) {
@@ -1329,20 +1416,58 @@ function rakHTML(d) {
   }).join('')}</div><div class="rak-papan"></div></div><p class="rak-tip">Leret rak ke kiri untuk folder seterusnya</p>`;
 }
 
+/** Pemilih panitia + sub-tab Ringkasan / Fail / Laporan / Ahli */
+function subPanitiaHTML(d) {
+  const boleh = S.data.panitia.filter(p => p.lihat);
+  return `<div class="sub-panitia">${boleh.length > 1 ? `<select data-chg="tukarPanitia" aria-label="Tukar panitia">${boleh.map(p => `<option value="${p.id}" ${p.id === d.panitia.id ? 'selected' : ''}>${esc(p.nama)}${p.peranan && p.peranan !== 'MENUNGGU' ? ' (' + esc(PERANAN[p.peranan]) + ')' : ''}</option>`).join('')}</select>` : ''}
+    <div class="seg empat" role="tablist" aria-label="Bahagian panitia">${[['dash', 'Ringkasan'], ['folder', 'Fail'], ['laporan', 'Laporan'], ['ahli', 'Ahli']].map(([k, l]) => `<button role="tab" aria-selected="${S.tab === k}" data-act="subPanitia" data-t="${k}">${l}</button>`).join('')}</div></div>`;
+}
 function renderDash() {
   const d = S.detail, a = d.akses, me = S.user.id;
   tajuk(d.panitia.nama);
   kemasFab();
-  const saya = S.data.panitia.filter(p => p.lihat && (p.peranan || p.id === d.panitia.id));
   const terkini = d.fail[0];
+  const dokSek = a.su || a.pentadbir ? (d.dokSekolah || []) : [];
   const tugasSaya = d.tugasan.map(t => ({ t, siap: d.fail.some(f => f.tugasanId === t.id && f.pemilikId === me) }));
   const hariTong = f => Math.max(0, 30 - Math.floor((Date.now() - new Date(f.dipadamPada).getTime()) / 864e5));
 
-  $('#main').innerHTML = `
+  const carta = `<details class="blok" id="cartaBlok" ${S.cartaBuka || S.cartaEdit || S.tab === 'ahli' ? 'open' : ''}>
+    <summary><h3>Carta organisasi</h3>${ic('chev')}</summary>
+    <div class="carta-alat">${S.cartaEdit
+      ? `<button class="btn kecil utama" data-act="cartaSimpan">${ic('check', 16)}Simpan susunan</button><button class="btn kecil" data-act="cartaBatal">Batal</button>`
+      : `${a.urus ? `<button class="btn kecil" data-act="cartaEdit">${ic('grip', 16)}Susun carta</button>` : ''}<button class="btn kecil" data-act="eksportPdf">${ic('download', 16)}PDF</button><button class="btn kecil" data-act="eksportPng">${ic('image', 16)}PNG</button>`}</div>
+    ${S.cartaEdit ? '<p class="carta-nota">Tekan dan seret pemegang di penjuru kad untuk memindahkan guru antara Setiausaha dan Ahli, atau menukar susunan. Ketik ikon pensel untuk menukar jawatan dalam carta.</p>' : ''}
+    <div id="cartaWrap">${cartaHTML(d, S.cartaEdit)}</div>
+  </details>`;
+  const permohonan = a.urus && d.menunggu.length ? `<section class="blok amaran"><div class="blok-kepala"><h3>Permohonan menyertai panitia</h3><span class="chip tunggu">${d.menunggu.length}</span></div>
+    <ul class="mohon" style="list-style:none">${d.menunggu.map(k => `<li>${avatar(k.user, 40)}<span class="isi"><b>${esc(k.user.nama)}</b><small>${k.tahun ? 'Mengajar Tahun ' + esc(k.tahun) : 'Tahun belum dinyatakan'}</small></span>
+      <button class="btn kecil utama" data-act="sahkanAhli" data-id="${k.id}" data-lulus="1">Sahkan</button><button class="btn kecil" data-act="sahkanAhli" data-id="${k.id}" data-lulus="0">Tolak</button></li>`).join('')}</ul></section>` : '';
+
+  if (S.tab === 'ahli') {
+    $('#main').innerHTML = `${subPanitiaHTML(d)}${permohonan}
+  <section class="blok" style="margin-top:0"><div class="blok-kepala"><h3>Ahli panitia</h3>${a.urus ? `<button class="btn kecil utama" data-act="borangTambahAhli">${ic('plus', 16)}Tambah ahli</button>` : `<span class="muted">${d.ahli.length} orang</span>`}</div>
+    ${a.urus ? `<p class="muted" style="margin:-4px 0 6px">${d.ahli.length} orang. Ketik ikon gambar untuk memuat naik foto guru.</p>` : ''}
+    ${d.ahli.length ? `<ul class="ahli">${d.ahli.map(m => `<li><button class="ahli-btn" data-act="lihatAhli" data-id="${m.id}">${avatar(m, 44)}<span><b>${esc(m.nama)}</b><small>${esc(peranPanitia(d, m.id))}${m.tahun ? ', Tahun ' + esc(m.tahun) : ''}</small></span></button>
+      ${a.urus ? `<label class="ib foto" aria-label="Muat naik foto ${esc(m.nama)}">${ic('image')}<input type="file" accept="image/*" data-chg="fotoGuru" data-id="${m.id}" hidden></label>` : ''}
+      ${m.telefon ? `<a class="ib wa" href="${waLink(m.telefon)}" target="_blank" rel="noopener" aria-label="WhatsApp ${esc(m.nama)}">${ic('chat')}</a><a class="ib" href="tel:${esc(m.telefon)}" aria-label="Panggil ${esc(m.nama)}">${ic('phone')}</a>` : ''}</li>`).join('')}</ul>`
+      : '<p class="kosong-kecil">Belum ada ahli disahkan.</p>'}
+  </section>
+  ${carta}
+  ${a.urus ? `<section class="blok"><div class="blok-kepala"><h3>Pautan pemantau</h3><button class="btn kecil" data-act="borangPemantau">${ic('shield', 16)}Jana pautan</button></div>
+    <p class="muted">Pautan baca sahaja untuk pegawai PPD, JNJK atau Nazir. Dilindungi kata laluan sementara. Folder 09 tidak dipaparkan.</p>
+    ${d.pemantau.length ? `<ul class="pemantau-senarai">${d.pemantau.map(x => `<li><span class="isi"><b>${esc(x.label)}</b><small>Sah hingga ${tarikhPendek(x.tamat)}</small></span>
+      <button class="btn kecil" data-act="salinPemantau" data-kod="${x.kod}">${ic('copy', 16)}Pautan</button><button class="btn kecil bahaya" data-act="batalPemantau" data-id="${x.id}">Batal</button></li>`).join('')}</ul>` : ''}
+  </section>` : ''}`;
+    const det = $('#cartaBlok');
+    det.addEventListener('toggle', () => { S.cartaBuka = det.open; });
+    if (S.cartaEdit) aktifSeret($('#cartaWrap'));
+    hydrateImgs();
+    return;
+  }
+
+  $('#main').innerHTML = `${subPanitiaHTML(d)}
   <section class="kepala">
-    <div class="kepala-atas"><span class="kepala-kod">${esc(d.panitia.kod || 'PANITIA')}</span>
-      ${saya.length > 1 ? `<select data-chg="tukarPanitia" aria-label="Tukar panitia">${saya.map(p => `<option value="${p.id}" ${p.id === d.panitia.id ? 'selected' : ''}>${esc(p.nama)}</option>`).join('')}</select>` : ''}
-    </div>
+    <div class="kepala-atas"><span class="kepala-kod">${esc(d.panitia.kod || 'PANITIA')}</span></div>
     <h2>Panitia ${esc(d.panitia.nama)}</h2>
     <p class="kepala-kp">Ketua Panitia: <b>${esc(d.panitia.ketua || 'Belum dilantik')}</b></p>
     <dl class="kepala-stat">
@@ -1350,7 +1475,7 @@ function renderDash() {
       <div><dt>Fail</dt><dd>${d.fail.length}</dd></div>
       <div><dt>Muat naik terkini</dt><dd class="kecil">${terkini ? masaLalu(terkini.dicipta) : 'Belum ada'}</dd></div>
     </dl>
-    <span class="chip">${a.r ? PERANAN[a.r] : 'Super Admin'}${a.admin && a.r ? ', Super Admin' : ''}</span>
+    <span class="chip">${a.r ? PERANAN[a.r] : (a.admin ? 'Super Admin' : 'Pentadbir kurikulum')}${a.admin && a.r ? ', Super Admin' : ''}</span>
   </section>
 
   <section class="blok">
@@ -1365,44 +1490,22 @@ function renderDash() {
       <span class="tg-isi"><b>${esc(t.tajuk)}</b><small>Folder ${pad(t.folderNo)}${t.tarikhAkhir ? ', tarikh akhir ' + tarikhPendek(t.tarikhAkhir) : ''}</small></span>
       ${siap ? '<span class="chip">Selesai</span>' : t.id.startsWith('tmp_') ? '<span class="chip kelabu">Menyimpan…</span>' : `<button class="btn kecil utama" data-act="borangMuatNaik" data-no="${t.folderNo}" data-tug="${t.id}">Hantar</button>`}</li>`).join('')}</ul></section>` : ''}
 
-  <details class="blok" id="cartaBlok" ${S.cartaBuka || S.cartaEdit ? 'open' : ''}>
-    <summary><h3>Carta organisasi</h3>${ic('chev')}</summary>
-    <div class="carta-alat">${S.cartaEdit
-      ? `<button class="btn kecil utama" data-act="cartaSimpan">${ic('check', 16)}Simpan susunan</button><button class="btn kecil" data-act="cartaBatal">Batal</button>`
-      : `${a.urus ? `<button class="btn kecil" data-act="cartaEdit">${ic('grip', 16)}Susun carta</button>` : ''}<button class="btn kecil" data-act="eksportPdf">${ic('download', 16)}PDF</button><button class="btn kecil" data-act="eksportPng">${ic('image', 16)}PNG</button>`}</div>
-    ${S.cartaEdit ? '<p class="carta-nota">Tekan dan seret pemegang di penjuru kad untuk memindahkan guru antara Setiausaha dan Ahli, atau menukar susunan. Ketik ikon pensel untuk menukar jawatan dalam carta.</p>' : ''}
-    <div id="cartaWrap">${cartaHTML(d, S.cartaEdit)}</div>
-  </details>
+  ${dokSek.length ? `<section class="blok"><div class="blok-kepala"><h3>Dokumen wajib sekolah</h3><span class="muted">${dokSek.filter(x => x.siap).length}/${dokSek.length} dihantar</span></div>
+    <ul class="tugasan-senarai">${dokSek.map(t => `<li><span class="dot ${t.siap ? 'ok' : 'belum'}" role="img" aria-label="${t.siap ? 'Selesai' : 'Belum dihantar'}"></span>
+      <span class="tg-isi"><b>${esc(t.tajuk)}</b><small>Folder ${pad(t.folderNo)}${t.tarikhAkhir ? ', tarikh akhir ' + tarikhPendek(t.tarikhAkhir) : ''}</small></span>
+      ${t.siap ? '<span class="chip">Selesai</span>' : a.su ? `<button class="btn kecil utama" data-act="borangMuatNaik" data-no="${t.folderNo}" data-tug="${t.id}">Hantar</button>` : '<span class="chip merah">Belum</span>'}</li>`).join('')}</ul></section>` : ''}
 
-  ${a.urus && d.menunggu.length ? `<section class="blok amaran"><div class="blok-kepala"><h3>Permohonan menyertai panitia</h3><span class="chip tunggu">${d.menunggu.length}</span></div>
-    <ul class="mohon" style="list-style:none">${d.menunggu.map(k => `<li>${avatar(k.user, 40)}<span class="isi"><b>${esc(k.user.nama)}</b><small>${k.tahun ? 'Mengajar Tahun ' + esc(k.tahun) : 'Tahun belum dinyatakan'}</small></span>
-      <button class="btn kecil utama" data-act="sahkanAhli" data-id="${k.id}" data-lulus="1">Sahkan</button><button class="btn kecil" data-act="sahkanAhli" data-id="${k.id}" data-lulus="0">Tolak</button></li>`).join('')}</ul></section>` : ''}
+  ${permohonan}
 
   ${a.su ? semakanHTML(d) : ''}
 
-  <section class="blok"><div class="blok-kepala"><h3>Ahli panitia</h3>${a.urus ? `<button class="btn kecil utama" data-act="borangTambahAhli">${ic('plus', 16)}Tambah ahli</button>` : `<span class="muted">${d.ahli.length} orang</span>`}</div>
-    ${a.urus ? `<p class="muted" style="margin:-4px 0 6px">${d.ahli.length} orang. Ketik ikon gambar untuk memuat naik foto guru.</p>` : ''}
-    ${d.ahli.length ? `<ul class="ahli">${d.ahli.map(m => `<li><button class="ahli-btn" data-act="lihatAhli" data-id="${m.id}">${avatar(m, 44)}<span><b>${esc(m.nama)}</b><small>${esc(peranPanitia(d, m.id))}${m.tahun ? ', Tahun ' + esc(m.tahun) : ''}</small></span></button>
-      ${a.urus ? `<label class="ib foto" aria-label="Muat naik foto ${esc(m.nama)}">${ic('image')}<input type="file" accept="image/*" data-chg="fotoGuru" data-id="${m.id}" hidden></label>` : ''}
-      ${m.telefon ? `<a class="ib wa" href="${waLink(m.telefon)}" target="_blank" rel="noopener" aria-label="WhatsApp ${esc(m.nama)}">${ic('chat')}</a><a class="ib" href="tel:${esc(m.telefon)}" aria-label="Panggil ${esc(m.nama)}">${ic('phone')}</a>` : ''}</li>`).join('')}</ul>`
-      : '<p class="kosong-kecil">Belum ada ahli disahkan.</p>'}
-  </section>
-
-  ${a.urus ? `<section class="blok"><div class="blok-kepala"><h3>Pautan pemantau</h3><button class="btn kecil" data-act="borangPemantau">${ic('shield', 16)}Jana pautan</button></div>
-    <p class="muted">Pautan baca sahaja untuk pegawai PPD, JNJK atau Nazir. Dilindungi kata laluan sementara. Folder 09 tidak dipaparkan.</p>
-    ${d.pemantau.length ? `<ul class="pemantau-senarai">${d.pemantau.map(x => `<li><span class="isi"><b>${esc(x.label)}</b><small>Sah hingga ${tarikhPendek(x.tamat)}</small></span>
-      <button class="btn kecil" data-act="salinPemantau" data-kod="${x.kod}">${ic('copy', 16)}Pautan</button><button class="btn kecil bahaya" data-act="batalPemantau" data-id="${x.id}">Batal</button></li>`).join('')}</ul>` : ''}
-  </section>
-  <section class="blok"><button class="btn penuh" data-act="bukaTong">${ic('trash', 18)}Tong sampah (${d.tong.length})</button>
+  ${a.urus ? `  <section class="blok"><button class="btn penuh" data-act="bukaTong">${ic('trash', 18)}Tong sampah (${d.tong.length})</button>
     ${d.tong.length ? `<p class="nota" style="margin-top:8px">Item paling awal akan dipadam kekal dalam ${Math.min(...d.tong.map(hariTong))} hari.</p>` : ''}</section>` : ''}
 
   <section class="blok"><div class="blok-kepala"><h3>Aktiviti terkini</h3><button class="ib" data-act="segar" aria-label="Muat semula">${ic('refresh', 18)}</button></div>
     ${d.log.length ? `<ul class="log">${d.log.slice(0, 12).map(l => `<li><div><b>${esc(l.nama)}</b> ${esc(ayat(l.tindakan))}${l.butiran ? ': ' + esc(l.butiran) : ''}<small>${masaLalu(l.masa)}</small></div></li>`).join('')}</ul>` : '<p class="kosong-kecil">Belum ada aktiviti.</p>'}
   </section>`;
 
-  const det = $('#cartaBlok');
-  det.addEventListener('toggle', () => { S.cartaBuka = det.open; });
-  if (S.cartaEdit) aktifSeret($('#cartaWrap'));
   hydrateImgs();
 }
 
@@ -1580,7 +1683,7 @@ async function eksportPng() {
       y += 24;
     });
     x.fillStyle = '#66736D'; x.font = '400 18px Lexend, sans-serif';
-    x.fillText('Dijana melalui e-Panitia pada ' + new Date().toLocaleDateString('ms-MY'), W / 2, H - 28);
+    x.fillText('Dijana melalui e-Kurikulum pada ' + new Date().toLocaleDateString('ms-MY'), W / 2, H - 28);
     simpanFail(c.toDataURL('image/png').split(',')[1], 'image/png', `Carta Organisasi Panitia ${d.panitia.nama}.png`);
     toast('PNG carta dimuat turun');
   } catch (e) { toast('PNG gagal dijana: ' + e.message, 'ralat'); } finally { sibuk(false); }
@@ -1635,8 +1738,8 @@ function renderFolder() {
   const d = S.detail;
   kemasFab();
   if (!S.folder) {
-    tajuk('Folder ' + d.panitia.nama);
-    $('#main').innerHTML = `<p class="muted" style="margin:0 4px 12px">Panitia ${esc(d.panitia.nama)}, ${d.fail.length} fail keseluruhan</p>${senaraiFolderHTML(d)}`;
+    tajuk('Fail ' + d.panitia.nama);
+    $('#main').innerHTML = `${S.pemantau ? '' : subPanitiaHTML(d)}<p class="muted" style="margin:0 4px 12px">Panitia ${esc(d.panitia.nama)}, ${d.fail.length} fail keseluruhan</p>${senaraiFolderHTML(d)}`;
     return;
   }
   const F = FOLDERS[S.folder - 1];
@@ -1743,7 +1846,7 @@ function viewProfil() {
   const u = S.user, d = S.data;
   const subj = d.subjek.map(s => { const p = d.semuaPanitia.find(x => x.id === s.panitiaId); return p ? { p, s } : null; }).filter(Boolean);
   const peranan = d.panitia.filter(p => p.peranan === 'KP' || p.peranan === 'SU').map(p => `${PERANAN[p.peranan]} ${p.nama}`).join(', ');
-  $('#main').innerHTML = `${kadProfilHTML(u, { ubahFoto: 'fotoSaya', peranan: u.peranan === 'SUPER_ADMIN' ? 'Super Admin' + (peranan ? ', ' + peranan : '') : peranan })}
+  $('#main').innerHTML = `${kadProfilHTML(u, { ubahFoto: 'fotoSaya', peranan: [u.peranan === 'SUPER_ADMIN' ? 'Super Admin' : (d.pentadbirKur ? 'Pentadbir kurikulum' : ''), peranan].filter(Boolean).join(', ') })}
     <section class="blok"><div class="blok-kepala"><h3>Maklumat perkhidmatan</h3><button class="btn kecil" data-act="borangProfil">${ic('edit', 16)}Kemas kini</button></div>${infoHTML(u, true)}</section>
     <section class="blok"><div class="blok-kepala"><h3>Mata pelajaran diajar</h3></div>
       ${subj.length ? `<ul class="tugasan-senarai">${subj.map(({ p, s }) => `<li><span class="tg-isi"><b>${esc(p.nama)}</b><small>${s.tahun ? 'Tahun ' + esc(s.tahun) : 'Tahun belum dinyatakan'}</small></span>${s.status === 'MENUNGGU' ? '<span class="chip tunggu">Menunggu</span>' : '<span class="chip">Disahkan</span>'}</li>`).join('')}</ul>`
@@ -1761,7 +1864,7 @@ function viewProfil() {
       <button data-act="pasangApp">${ic('phoneApp')}<span>Pasang pada skrin utama telefon</span>${ic('chev', 16)}</button>
       <button data-act="logKeluar" class="merah">${ic('logout')}<span class="merah">Log keluar</span></button>
     </div></section>
-    <p class="nota" style="text-align:center;margin-top:16px">e-Panitia versi ${esc(d.versi)}</p>`;
+    <p class="nota" style="text-align:center;margin-top:16px">e-Kurikulum versi ${esc(d.versi)}</p>`;
   muatJadual('saya');
 }
 
@@ -1939,6 +2042,10 @@ function renderAdmin() {
       <label class="medan"><span>Setiausaha Kurikulum (Penyelaras)</span>${pilihGuru('sukId', T.sukId)}<input name="sukNama" value="${esc(T.sukNama)}" placeholder="Atau taip nama"></label>${fotoPentadbirHTML('suk', T)}
       <label class="medan"><span>Pautan CSV jadual waktu sekolah</span><input name="jadualCsvUrl" type="url" value="${esc(T.jadualCsvUrl)}" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?output=csv"></label>
       <p class="nota">Google Sheet jadual: File &gt; Share &gt; Publish to web &gt; pilih tab &gt; CSV. Lajur wajib: Hari, Masa, Guru (Sesi, Period, Kelas, Subjek disyorkan).</p>
+      <fieldset class="subjek"><legend>Akses pentadbir kurikulum tambahan</legend>
+        <p class="nota">GB, PK Pentadbiran dan SU Kurikulum yang dipilih di atas mendapat akses secara automatik. Tandakan pengguna lain, contohnya Ketua Bidang atau SU Peperiksaan.</p>
+        <div class="akses-kur">${A.pengguna.filter(u => u.status !== 'NYAHAKTIF' && u.status !== 'MENUNGGU' && u.peranan !== 'SUPER_ADMIN').map(u => `<label class="sj-cek"><input type="checkbox" name="aksesKur" value="${u.id}" ${String(T.aksesKurikulum || '').split(',').includes(u.id) ? 'checked' : ''}><span>${esc(u.nama)}</span></label>`).join('')}</div>
+      </fieldset>
       <button class="btn" type="button" data-act="jwUjiSumber">${ic('refresh', 18)}Muat semula jadual dari Google Sheet</button>
       <button class="btn utama" type="submit">Simpan tetapan</button></form>`;
   }
@@ -1985,8 +2092,11 @@ function pilihFolderHTML(pre) {
 }
 function pilihTugasanHTML(pre) {
   const T = S.detail.tugasan.filter(t => !t.id.startsWith('tmp_'));
-  if (!T.length) return '';
-  return `<label class="medan"><span>Penghantaran dokumen wajib <i>(pilihan)</i></span><select name="tugasanId"><option value="">Bukan dokumen wajib</option>${T.map(t => `<option value="${t.id}" ${t.id === pre ? 'selected' : ''}>${esc(t.tajuk)}</option>`).join('')}</select></label>`;
+  const D = S.detail.akses.su ? (S.detail.dokSekolah || []) : [];
+  if (!T.length && !D.length) return '';
+  const opt = t => `<option value="${t.id}" ${t.id === pre ? 'selected' : ''}>${esc(t.tajuk)}</option>`;
+  return `<label class="medan"><span>Penghantaran dokumen wajib <i>(pilihan)</i></span><select name="tugasanId"><option value="">Bukan dokumen wajib</option>
+    ${T.length ? `<optgroup label="Dokumen wajib panitia">${T.map(opt).join('')}</optgroup>` : ''}${D.length ? `<optgroup label="Dokumen wajib sekolah">${D.map(opt).join('')}</optgroup>` : ''}</select></label>`;
 }
 function perluPanitia() {
   if (!S.detail || S.detail.panitia.id !== S.panitiaId || !S.detail.akses.lihat) { toast('Pilih panitia dahulu dari Laman Utama.', 'ralat'); return false; }
@@ -2571,6 +2681,7 @@ const SUB = {
   hantarTetapan: f => {
     const tetapan = {};
     ['namaSekolah', 'kodSekolah', 'domainEmel', 'emelPeringatan', 'benamkan', 'gbId', 'gbNama', 'pkId', 'pkNama', 'sukId', 'sukNama', 'jadualCsvUrl'].forEach(k => { tetapan[k] = f[k].value.trim(); });
+    tetapan.aksesKurikulum = $$('input[name=aksesKur]:checked', f).map(x => x.value).join(',');
     if (tetapan.jadualCsvUrl && !/^https:\/\/\S+$/i.test(tetapan.jadualCsvUrl)) return toast('Pautan CSV jadual mesti bermula dengan https://', 'ralat');
     Object.assign(S.adm.tetapan, tetapan);
     S.data.tetapan.namaSekolah = tetapan.namaSekolah; $('#tSek').textContent = tetapan.namaSekolah; store.set('ep_init', S.data);
@@ -2703,7 +2814,7 @@ function renderLaporan() {
   const kat = [...new Set(L.map(r => r.kategori).filter(Boolean))].sort();
   const tab = S.lapTab || 'senarai';
   $('#main').innerHTML = `
-    <button class="btn kecil" data-act="${ro ? 'tutupLapPemantau' : 'keDash'}" style="margin-bottom:12px">${ic('back', 16)}${ro ? 'Kembali' : 'Papan pemuka panitia'}</button>
+    ${ro ? `<button class="btn kecil" data-act="tutupLapPemantau" style="margin-bottom:12px">${ic('back', 16)}Kembali</button>` : subPanitiaHTML(d)}
     <section class="lap-kepala"><div><small>Panitia ${esc(d.panitia.nama)}</small><h2>Laporan Aktiviti</h2><p>One Page Report (OPR) program dan aktiviti panitia</p></div>
       ${ro ? '' : `<button class="btn kuning" data-act="borangOPR">${ic('plus', 18)}Laporan baharu</button>`}</section>
     <div class="seg" role="tablist" style="margin:14px 0 12px">${[['senarai', 'Senarai laporan'], ['analisis', 'Analisis']].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" data-act="lapTab" data-t="${k}">${l}</button>`).join('')}</div>
@@ -2836,16 +2947,17 @@ function kemasSlotOPR(i) {
   slot.classList.toggle('ada', !!g);
   const b = slot.parentElement.querySelector('.slot-buang'); if (b) b.hidden = !g;
 }
-function borangOPR(x) {
+function borangOPR(x, awal) {
   if (!perluPanitia()) return;
+  awal = awal || {};
   const t = new Date(), hariIni = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
-  S.opr = { id: x ? x.id : '', gambar: [0, 1, 2, 3].map(i => x && x.fotoIds && x.fotoIds[i] ? { id: x.fotoIds[i] } : null), pertamaAsal: x ? (x.fotoIds || []).find(Boolean) || '' : '' };
-  const v = k => esc(x ? x[k] || '' : '');
-  const tempatLalai = esc(String(S.detail.sekolah || (S.data && S.data.tetapan.namaSekolah) || '').toUpperCase());
+  S.opr = { id: x ? x.id : '', programId: awal.programId || '', gambar: [0, 1, 2, 3].map(i => x && x.fotoIds && x.fotoIds[i] ? { id: x.fotoIds[i] } : null), pertamaAsal: x ? (x.fotoIds || []).find(Boolean) || '' : '' };
+  const v = k => esc(x ? x[k] || '' : (awal[k] || ''));
+  const tempatLalai = awal.tempat ? esc(String(awal.tempat).toUpperCase()) : esc(String(S.detail.sekolah || (S.data && S.data.tetapan.namaSekolah) || '').toUpperCase());
   bukaSheet(`<h3 class="sheet-t">${x ? 'Ubah laporan aktiviti' : 'Laporan aktiviti baharu'}</h3>
     <p class="sheet-p">Dijana sebagai One Page Report (OPR), PDF satu muka surat A4, dan disimpan dalam Folder 10 Panitia ${esc(S.detail.panitia.nama)}.</p>
     <form class="borang" data-sub="hantarOPR">
-      <div class="dua"><label class="medan"><span>Kategori</span><input name="kategori" list="senaraiKatOPR" value="${x ? v('kategori') : 'LAPORAN'}" maxlength="40" required></label>
+      <div class="dua"><label class="medan"><span>Kategori</span><input name="kategori" list="senaraiKatOPR" value="${x || awal.kategori ? v('kategori') : 'LAPORAN'}" maxlength="40" required></label>
         <label class="medan"><span>Tarikh laporan</span><input type="date" name="tarikh" value="${x ? v('tarikh') : hariIni}" required></label></div>
       <datalist id="senaraiKatOPR">${KATEGORI_OPR.map(k => `<option value="${k}">`).join('')}</datalist>
       <label class="medan"><span>Tajuk bahan / program</span><input name="tajuk" value="${v('tajuk')}" maxlength="200" required placeholder="cth. Bulan Panitia STEM (Sains) 2026"></label>
@@ -2899,6 +3011,7 @@ function simpanOPRLatar(data) {
       simpanLS(pid); kemasKiraan(pid);
     }
     delete OPRCACHE[r.laporan.id];
+    if (data.programId && S.kur) { const pg = (S.kur.program || []).find(x => x.id === data.programId); if (pg) { pg.laporanId = r.laporan.id; simpanKur(); } }
     toast(data.id ? 'OPR dikemas kini' : 'OPR siap dan disimpan dalam Folder 10');
   }).catch(e => {
     const dd = MEM[pid];
@@ -2964,7 +3077,8 @@ Object.assign(SUB, {
       panitiaId: S.panitiaId, id: o.id || undefined, kategori: val('kategori').toUpperCase(), tarikh: val('tarikh'), tajuk: val('tajuk'),
       tarikhMula: val('tarikhMula'), tarikhTamat: val('tarikhTamat'), tempat: val('tempat'), objektif: val('objektif'), tentatif: val('tentatif'),
       catatan: val('catatan'), disediakanOleh: val('disediakanOleh'), tugasanId: val('tugasanId'),
-      gambar: o.gambar.map(x => (x ? (x.data ? { data: x.data } : { id: x.id }) : null))
+      gambar: o.gambar.map(x => (x ? (x.data ? { data: x.data } : { id: x.id }) : null)),
+      programId: o.programId || undefined
     };
     if (data.tarikhTamat && data.tarikhTamat < data.tarikhMula) return toast('Tarikh tamat mesti sama atau selepas tarikh mula.', 'ralat');
     const pertama = o.gambar.find(Boolean);
@@ -2986,6 +3100,440 @@ Object.assign(CHG, {
 Object.assign(INP, {
   cariLap: el => { S.lapCari = el.value; $('#lapSenarai').innerHTML = lapSenaraiHTML(S.detail); hydrateImgs(); }
 });
+
+
+/* =====================================================================
+   E-KURIKULUM FASA 1: UTAMA, TAKWIM, KURIKULUM
+   ===================================================================== */
+const HARI_SINGKAT = ['AHD', 'ISN', 'SEL', 'RAB', 'KHA', 'JUM', 'SAB'];
+const BULAN_PENUH = ['Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun', 'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'];
+const isoDari = t => `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
+const hariISO = (tambah = 0) => { const t = new Date(); t.setDate(t.getDate() + tambah); return isoDari(t); };
+const tarikhObj = iso => { const [y, m, d] = String(iso).split('-').map(Number); return new Date(y, m - 1, d); };
+const idKlien = awal => awal + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const K_ = () => S.kur || (S.kur = { akses: 'GURU', program: [], mesyuarat: [], tindakan: [], dokSekolah: [], panitiaSaya: [] });
+const pentadbirKur = () => !!(S.kur && S.kur.akses === 'PENTADBIR');
+const simpanKur = () => store.set('ep_kur', S.kur);
+const namaPanitia = id => { const p = (S.data.semuaPanitia || []).find(x => x.id === id); return p ? p.nama : ''; };
+function renderKurSemasa() { if (['home', 'takwim', 'kurikulum'].includes(S.tab) && !S.pemantau) render(); }
+
+/** Program + mesyuarat JK sebagai satu senarai acara takwim */
+function acaraTakwim() {
+  const K = K_();
+  const p = (K.program || []).map(x => ({ id: x.id, jenis: 'PROGRAM', tajuk: x.tajuk, kategori: x.kategori, panitiaId: x.panitiaId,
+    label: x.panitiaId ? 'Panitia ' + (x.panitia || namaPanitia(x.panitiaId)) : 'Peringkat sekolah', mula: x.tarikhMula, tamat: x.tarikhTamat || x.tarikhMula, masa: x.masa, tempat: x.tempat, x }));
+  const m = (K.mesyuarat || []).map(x => ({ id: x.id, jenis: 'MESYUARAT', tajuk: x.tajuk, kategori: 'MESYUARAT', panitiaId: '',
+    label: 'JK Kurikulum', mula: x.tarikh, tamat: x.tarikh, masa: x.masa, tempat: x.tempat, x }));
+  return p.concat(m).filter(a => a.mula).sort((a, b) => (a.mula + (a.masa || '')).localeCompare(b.mula + (b.masa || '')));
+}
+const bertindih = (a, b) => a.id !== b.id && a.mula <= b.tamat && b.mula <= a.tamat;
+function acaraHTML(a, semua) {
+  const t = tarikhObj(a.mula);
+  const julat = a.tamat && a.tamat !== a.mula ? ` – ${tarikhPendek(a.tamat)}` : '';
+  const tindih = (semua || []).filter(b => bertindih(a, b));
+  return `<button class="tk-item" data-act="lihatAcara" data-id="${a.id}" data-jenis="${a.jenis}">
+    <span class="tk-tarikh ${a.jenis === 'MESYUARAT' ? 'm' : ''}"><b>${t.getDate()}</b><small>${HARI_SINGKAT[t.getDay()]}</small></span>
+    <span class="tk-isi"><b>${esc(a.tajuk)}</b><small>${esc(a.label)}${julat ? ' · hingga ' + tarikhPendek(a.tamat) : ''}${a.masa ? ' · ' + esc(a.masa) : ''}${a.tempat ? ' · ' + esc(a.tempat) : ''}</small>
+      ${tindih.length ? `<small class="tk-amaran">Bertindih dengan ${esc(tindih.map(b => b.tajuk).join(', '))}</small>` : ''}
+      ${a.x && a.x.laporanId ? '<small><span class="chip">OPR siap</span></small>' : ''}</span></button>`;
+}
+
+/** Tugasan saya: dokumen wajib panitia, dokumen wajib sekolah (KP/SU) dan tindakan JK */
+function tugasanSaya() {
+  const me = S.user.id, K = K_(), out = [];
+  S.data.panitia.filter(p => p.peranan && p.peranan !== 'MENUNGGU').forEach(p => {
+    const d = MEM[p.id]; if (!d) return;
+    d.tugasan.filter(t => !String(t.id).startsWith('tmp_') && !d.fail.some(f => f.tugasanId === t.id && f.pemilikId === me)).forEach(t =>
+      out.push({ tajuk: t.tajuk, sumber: 'Panitia ' + p.nama, tarikh: t.tarikhAkhir, act: 'hantarTugasan', attr: `data-pid="${p.id}" data-id="${t.id}" data-no="${t.folderNo}"`, butang: 'Hantar', utama: true }));
+  });
+  (K.dokSekolah || []).forEach(dk => (dk.status || []).filter(x => !x.siap && (K.panitiaSaya || []).includes(x.panitiaId)).forEach(x =>
+    out.push({ tajuk: dk.tajuk, sumber: 'Dokumen wajib sekolah · Panitia ' + x.nama, tarikh: dk.tarikhAkhir, act: 'hantarTugasan', attr: `data-pid="${x.panitiaId}" data-id="${dk.id}" data-no="${dk.folderNo}"`, butang: 'Hantar', utama: true })));
+  (K.tindakan || []).filter(t => t.pemilikId === me && t.status !== 'SELESAI').forEach(t => {
+    const m = (K.mesyuarat || []).find(x => x.id === t.mesyuaratId);
+    out.push({ tajuk: t.perkara, sumber: 'Tindakan ' + (m ? m.tajuk : 'JK Kurikulum'), tarikh: t.tarikhAkhir, act: 'togolTindakan', attr: `data-id="${t.id}"`, butang: 'Tanda selesai' });
+  });
+  return out.sort((a, b) => (a.tarikh || '9999').localeCompare(b.tarikh || '9999'));
+}
+function pemberitahuan() {
+  const out = [], K = K_();
+  S.data.panitia.forEach(p => { const d = MEM[p.id]; if (d && d.akses && d.akses.urus && d.menunggu && d.menunggu.length) out.push({ teks: `${d.menunggu.length} permohonan menyertai Panitia ${p.nama}`, act: 'bukaPanitia', attr: `data-id="${p.id}"`, butang: 'Semak' }); });
+  if (S.user.peranan === 'SUPER_ADMIN' && bilMenunggu()) out.push({ teks: `${bilMenunggu()} pendaftaran pengguna baharu menunggu kelulusan`, act: 'keAdmin', butang: 'Semak' });
+  if (pentadbirKur()) {
+    const lewat = (K.tindakan || []).filter(t => t.status !== 'SELESAI' && t.tarikhAkhir && t.tarikhAkhir < hariISO(0)).length;
+    if (lewat) out.push({ teks: `${lewat} tindakan susulan JK Kurikulum telah lewat`, act: 'keKurikulum', attr: 'data-t="jk"', butang: 'Lihat' });
+  }
+  return out;
+}
+
+/* ---------- TAKWIM ---------- */
+function viewTakwim() {
+  tajuk('Takwim kurikulum');
+  const K = K_();
+  if (!S.tkBulan) S.tkBulan = hariISO(0).slice(0, 7);
+  const [y, m] = S.tkBulan.split('-').map(Number);
+  const tapis = S.tkTapis || '';
+  const semua = acaraTakwim().filter(a => !tapis || (tapis === 'SEKOLAH' ? !a.panitiaId : a.panitiaId === tapis));
+  const awalB = `${S.tkBulan}-01`, akhirB = `${S.tkBulan}-${pad(new Date(y, m, 0).getDate())}`;
+  const bulanIni = semua.filter(a => a.mula <= akhirB && a.tamat >= awalB);
+  const sel = [];
+  const offset = (new Date(y, m - 1, 1).getDay() + 6) % 7, n = new Date(y, m, 0).getDate(), kini = hariISO(0);
+  for (let i = 0; i < offset; i++) sel.push('<span></span>');
+  for (let dd = 1; dd <= n; dd++) {
+    const iso = `${S.tkBulan}-${pad(dd)}`;
+    const ac = bulanIni.filter(a => a.mula <= iso && a.tamat >= iso);
+    const tindih = ac.length > 1;
+    sel.push(`<button class="tk-hari ${iso === kini ? 'kini' : ''}" data-act="tkHari" data-v="${iso}" aria-pressed="${S.tkHari === iso}" aria-label="${dd} ${BULAN_PENUH[m - 1]}${ac.length ? ', ' + ac.length + ' acara' : ''}">${dd}
+      <span class="tk-titik">${ac.slice(0, 3).map(a => `<i class="${tindih ? 'r' : a.jenis === 'MESYUARAT' ? 'm' : ''}"></i>`).join('')}</span></button>`);
+  }
+  const senarai = S.tkHari ? bulanIni.filter(a => a.mula <= S.tkHari && a.tamat >= S.tkHari) : bulanIni;
+  const bolehTambah = pentadbirKur() || (K.panitiaSaya || []).length;
+  const pilihanP = [...new Set((K.program || []).map(x => x.panitiaId).filter(Boolean))].map(id => ({ id, nama: namaPanitia(id) })).filter(x => x.nama).sort((a, b) => a.nama.localeCompare(b.nama));
+  $('#main').innerHTML = `
+    <div class="tk-alat"><select data-chg="tkTapis" aria-label="Tapis takwim"><option value="">Semua program</option><option value="SEKOLAH" ${tapis === 'SEKOLAH' ? 'selected' : ''}>JK Kurikulum &amp; peringkat sekolah</option>
+      ${pilihanP.map(p => `<option value="${p.id}" ${tapis === p.id ? 'selected' : ''}>Panitia ${esc(p.nama)}</option>`).join('')}</select>
+      ${bolehTambah ? `<button class="btn kuning" data-act="borangProgram">${ic('plus', 18)}Program</button>` : ''}</div>
+    <section class="tk-kal">
+      <div class="tk-kal-atas"><button class="ib" data-act="tkBulan" data-v="-1" aria-label="Bulan sebelum">${ic('back', 18)}</button><h3>${BULAN_PENUH[m - 1]} ${y}</h3><button class="ib" data-act="tkBulan" data-v="1" aria-label="Bulan seterusnya">${ic('chev', 18)}</button></div>
+      <div class="tk-grid">${['Isn', 'Sel', 'Rab', 'Kha', 'Jum', 'Sab', 'Ahd'].map(h => `<span class="hd">${h}</span>`).join('')}${sel.join('')}</div>
+    </section>
+    <div class="blok-kepala" style="margin:16px 4px 8px"><h3>${S.tkHari ? 'Program pada ' + tarikhPendek(S.tkHari) : 'Program bulan ini'}</h3>${S.tkHari ? '<button class="btn kecil" data-act="tkHari" data-v="">Semua</button>' : `<span class="muted">${bulanIni.length} acara</span>`}</div>
+    <div class="tk-senarai">${senarai.map(a => acaraHTML(a, semua)).join('') || `<div class="blok" style="margin-top:0">${kosongHTML('calendar', S.tkHari ? 'Tiada program pada hari ini.' : 'Tiada program dalam bulan ini.')}</div>`}</div>`;
+}
+function bolehUrusProgram(x) { const K = K_(); return pentadbirKur() || x.diciptaId === S.user.id || (x.panitiaId && (K.panitiaSaya || []).includes(x.panitiaId)); }
+function lihatAcara(id, jenis) {
+  if (jenis === 'MESYUARAT') return mesyuaratSheet(id);
+  const x = (K_().program || []).find(p => p.id === id); if (!x) return;
+  const boleh = bolehUrusProgram(x);
+  const ahli = x.panitiaId && S.data.panitia.some(p => p.id === x.panitiaId && p.lihat);
+  const bolehOPR = ahli && !x.laporanId && x.tarikhMula <= hariISO(0);
+  const tindih = acaraTakwim().filter(b => b.id !== x.id && bertindih({ id: x.id, mula: x.tarikhMula, tamat: x.tarikhTamat || x.tarikhMula }, b));
+  bukaSheet(`<h3 class="sheet-t">${esc(x.tajuk)}</h3>
+    <dl class="info">
+      <div><dt>Penganjur</dt><dd>${esc(x.panitiaId ? 'Panitia ' + (x.panitia || namaPanitia(x.panitiaId)) : 'Peringkat sekolah')}</dd></div>
+      <div><dt>Kategori</dt><dd>${esc(ayatTarikh(x.kategori || 'PROGRAM'))}</dd></div>
+      <div><dt>Tarikh</dt><dd>${tarikhPendek(x.tarikhMula)}${x.tarikhTamat && x.tarikhTamat !== x.tarikhMula ? ' hingga ' + tarikhPendek(x.tarikhTamat) : ''}${x.masa ? ', ' + esc(x.masa) : ''}</dd></div>
+      <div><dt>Tempat</dt><dd>${esc(x.tempat || '-')}</dd></div>
+      ${x.catatan ? `<div><dt>Catatan</dt><dd>${esc(x.catatan)}</dd></div>` : ''}
+      <div><dt>Ditambah oleh</dt><dd>${esc(x.diciptaOleh || '-')}</dd></div>
+    </dl>
+    ${tindih.length ? `<p class="tk-amaran-kotak" style="margin-top:10px">Bertindih dengan: ${esc(tindih.map(b => b.tajuk + ' (' + b.label + ')').join(', '))}</p>` : ''}
+    <div class="baris-btn" style="margin-top:14px">
+      ${x.laporanId && ahli ? `<button class="btn utama" data-act="bukaOPRProgram" data-id="${x.id}">${ic('report', 18)}Lihat OPR</button>` : ''}
+      ${bolehOPR ? `<button class="btn utama" data-act="jadikanOPR" data-id="${x.id}">${ic('report', 18)}Jadikan OPR</button>` : ''}
+      ${boleh ? `<button class="btn" data-act="borangProgram" data-id="${x.id}">${ic('edit', 18)}Ubah</button><button class="btn bahaya" data-act="padamProgram" data-id="${x.id}">${ic('trash', 18)}Padam</button>` : ''}</div>`);
+}
+function borangProgram(x) {
+  const K = K_(), pk = pentadbirKur();
+  const pilihan = pk ? (S.data.semuaPanitia || []) : (S.data.semuaPanitia || []).filter(p => (K.panitiaSaya || []).includes(p.id));
+  if (!pk && !pilihan.length) return toast('Hanya Ketua Panitia, Setiausaha atau pentadbir boleh menambah program.', 'ralat');
+  const v = k => esc(x ? x[k] || '' : '');
+  const pre = x ? x.panitiaId : (S.panitiaId && pilihan.some(p => p.id === S.panitiaId) ? S.panitiaId : (pilihan[0] || {}).id || '');
+  bukaSheet(`<h3 class="sheet-t">${x ? 'Ubah program' : 'Program baharu'}</h3><form class="borang" data-sub="hantarProgram"><input type="hidden" name="id" value="${v('id')}">
+    <label class="medan"><span>Penganjur</span><select name="panitiaId">${pk ? `<option value="" ${x && !x.panitiaId ? 'selected' : ''}>Peringkat sekolah / JK Kurikulum</option>` : ''}${pilihan.map(p => `<option value="${p.id}" ${p.id === pre ? 'selected' : ''}>Panitia ${esc(p.nama)}</option>`).join('')}</select></label>
+    <label class="medan"><span>Nama program</span><input name="tajuk" value="${v('tajuk')}" maxlength="200" required placeholder="cth. Minggu Sains 2026"></label>
+    <div class="dua"><label class="medan"><span>Tarikh mula</span><input type="date" name="tarikhMula" value="${v('tarikhMula') || (S.tkHari || '')}" required data-inp="tkTindih"></label>
+      <label class="medan"><span>Tarikh tamat <i>(pilihan)</i></span><input type="date" name="tarikhTamat" value="${v('tarikhTamat')}" data-inp="tkTindih"></label></div>
+    <div id="tkAmaran"></div>
+    <div class="dua"><label class="medan"><span>Masa <i>(pilihan)</i></span><input name="masa" value="${v('masa')}" maxlength="60" placeholder="cth. 8.00 pagi"></label>
+      <label class="medan"><span>Kategori</span><input name="kategori" list="senaraiKatOPR" value="${x ? v('kategori') : 'PROGRAM'}" maxlength="40"></label></div>
+    <datalist id="senaraiKatOPR">${KATEGORI_OPR.map(k => `<option value="${k}">`).join('')}</datalist>
+    <label class="medan"><span>Tempat <i>(pilihan)</i></span><input name="tempat" value="${v('tempat')}" maxlength="200"></label>
+    <label class="medan"><span>Catatan <i>(pilihan)</i></span><textarea name="catatan" rows="2" maxlength="500">${v('catatan')}</textarea></label>
+    <button class="btn utama" type="submit">Simpan program</button></form>`, { fokus: !x });
+  semakTindih();
+}
+function semakTindih() {
+  const f = $('form[data-sub=hantarProgram]'), box = $('#tkAmaran'); if (!f || !box) return;
+  const mula = f.tarikhMula.value, tamat = f.tarikhTamat.value || mula;
+  if (!mula) { box.innerHTML = ''; return; }
+  const ini = { id: f.id.value || '_baru', mula, tamat: tamat < mula ? mula : tamat };
+  const t = acaraTakwim().filter(b => bertindih(ini, b));
+  box.innerHTML = t.length ? `<p class="tk-amaran-kotak">Tarikh ini bertindih dengan ${t.length} acara lain: ${esc(t.map(b => b.tajuk + ' (' + b.label + ')').join(', '))}. Anda masih boleh menyimpan.</p>` : '';
+}
+
+/* ---------- KURIKULUM ---------- */
+function viewKurikulum() {
+  tajuk('Kurikulum');
+  const K = K_(), pk = pentadbirKur();
+  const tabs = pk ? [['papan', 'Papan pemuka'], ['jk', 'JK Kurikulum'], ['dok', 'Dok. wajib']] : [['jk', 'JK Kurikulum'], ['saya', 'Tindakan saya'], ['dok', 'Dok. wajib']];
+  if (!S.kurTab || !tabs.some(t => t[0] === S.kurTab)) S.kurTab = tabs[0][0];
+  const isi = { papan: kurPapanHTML, jk: kurJKHTML, saya: kurSayaHTML, dok: kurDokHTML }[S.kurTab]();
+  $('#main').innerHTML = `<div class="seg tiga" role="tablist" aria-label="Bahagian kurikulum">${tabs.map(([k, l]) => `<button role="tab" aria-selected="${S.kurTab === k}" data-act="kurTab" data-t="${k}">${l}</button>`).join('')}</div>${isi}`;
+}
+function kurPapanHTML() {
+  const K = K_(), P = K.papan || [], kini = hariISO(0), had30 = hariISO(-30);
+  const dokJ = P.reduce((t, p) => t + p.dokJumlah, 0), dokS = P.reduce((t, p) => t + p.dokSiap, 0);
+  const lewat = (K.tindakan || []).filter(t => t.status !== 'SELESAI' && t.tarikhAkhir && t.tarikhAkhir < kini);
+  const tile = (v, l, s) => `<div class="stat-kad"><b>${v}</b><span>${l}</span>${s ? `<small>${s}</small>` : ''}</div>`;
+  const senyap = p => !p.terakhir || p.terakhir.slice(0, 10) < had30;
+  const urut = P.slice().sort((a, b) => (senyap(b) - senyap(a)) || ((a.dokJumlah ? a.dokSiap / a.dokJumlah : 1) - (b.dokJumlah ? b.dokSiap / b.dokJumlah : 1)) || a.nama.localeCompare(b.nama));
+  return `<div class="stat-grid">
+      ${tile(P.length, 'Panitia aktif')}
+      ${tile(dokJ ? Math.round(dokS / dokJ * 100) + '%' : '-', 'Dok. wajib sekolah dihantar', dokJ ? `${dokS}/${dokJ} penghantaran` : 'Belum ditetapkan')}
+      ${tile(lewat.length, 'Tindakan JK lewat')}
+      ${tile(P.reduce((t, p) => t + p.opr, 0), 'Laporan OPR ' + new Date().getFullYear())}
+    </div>
+    <section class="blok"><div class="blok-kepala"><h3>Status panitia</h3><span class="muted">Dok. wajib · OPR · aktiviti</span></div>
+      ${urut.length ? urut.map(p => `<button class="kur-baris" data-act="bukaPanitia" data-id="${p.id}"><b>${esc(p.nama)}</b><span class="muted" style="font-size:12.5px">${p.dokJumlah ? `${p.dokSiap}/${p.dokJumlah}` : '-'}</span>
+        ${p.dokJumlah ? `<span class="kur-trek" data-tip="${esc(p.nama)}: ${p.dokSiap}/${p.dokJumlah} dokumen wajib sekolah"><span style="width:${p.dokSiap / p.dokJumlah * 100}%"></span></span>` : ''}
+        <small><span>KP: ${esc(p.ketua ? namaPendek(p.ketua) : 'belum dilantik')}</span><span>${p.opr} OPR</span><span>${p.bilFail} fail</span>${senyap(p) ? '<span class="chip merah">Tiada aktiviti 30 hari</span>' : `<span>aktif ${masaLalu(p.terakhir)}</span>`}</small></button>`).join('')
+        : '<p class="kosong-kecil">Belum ada panitia.</p>'}
+    </section>
+    ${lewat.length ? `<section class="blok amaran"><div class="blok-kepala"><h3>Tindakan susulan lewat</h3><button class="btn kecil" data-act="kurTab" data-t="jk">Lihat JK</button></div>${tindakanSenaraiHTML(lewat.slice(0, 6), true)}</section>` : ''}`;
+}
+function tindakanSenaraiHTML(L, tunjukMesy) {
+  const K = K_(), me = S.user.id, pk = pentadbirKur(), kini = hariISO(0);
+  return `<ul class="tindakan-senarai">${L.map(t => {
+    const m = (K.mesyuarat || []).find(x => x.id === t.mesyuaratId);
+    const siap = t.status === 'SELESAI', boleh = pk || t.pemilikId === me;
+    return `<li class="${siap ? 'siap' : ''}">${boleh ? `<button class="cek-btn" data-act="togolTindakan" data-id="${t.id}" aria-pressed="${siap}" aria-label="${siap ? 'Tanda belum selesai' : 'Tanda selesai'}">${siap ? ic('check', 16) : ''}</button>` : ''}
+      <span class="isi"><b>${esc(t.perkara)}</b><small>${esc(t.pemilikNama || '-')}${t.tarikhAkhir ? ' · tarikh akhir ' + tarikhPendek(t.tarikhAkhir) : ''}${!siap && t.tarikhAkhir && t.tarikhAkhir < kini ? ' (lewat)' : ''}${siap && t.selesaiPada ? ' · selesai ' + tarikhPendek(t.selesaiPada) : ''}</small>
+      ${tunjukMesy && m ? `<small>${esc(m.tajuk)}</small>` : ''}${t.catatan ? `<small>${esc(t.catatan)}</small>` : ''}</span>
+      ${pk && !tunjukMesy ? `<button class="ib" data-act="padamTindakan" data-id="${t.id}" aria-label="Padam tindakan">${ic('x', 16)}</button>` : ''}</li>`;
+  }).join('')}</ul>`;
+}
+function kurJKHTML() {
+  const K = K_(), pk = pentadbirKur(), M = K.mesyuarat || [];
+  const tahun = [...new Set(M.map(m => m.tahun))].sort().reverse();
+  return `${pk ? `<button class="btn utama penuh" data-act="borangMesyuarat" style="margin-bottom:12px">${ic('plus', 18)}Mesyuarat baharu</button>` : ''}
+    ${M.length ? tahun.map(th => `<h3 class="sek-t" style="margin-top:4px">Tahun ${esc(th)}</h3><div class="tk-senarai">${M.filter(m => m.tahun === th).sort((a, b) => a.bil - b.bil).map(m => {
+      const T = (K.tindakan || []).filter(t => t.mesyuaratId === m.id);
+      return `<button class="mesy-kad" data-act="lihatMesyuarat" data-id="${m.id}"><span class="bil">BIL. ${m.bil}/${esc(m.tahun)} · ${m.status === 'SELESAI' ? 'SELESAI' : 'DIRANCANG'}</span><b>${esc(m.tajuk)}</b>
+        <small>${tarikhPendek(m.tarikh)}${m.masa ? ', ' + esc(m.masa) : ''}${m.tempat ? ' · ' + esc(m.tempat) : ''}</small>
+        <small>${m.minitDriveId || m.minitUrl ? 'Minit tersedia' : 'Minit belum dimuat naik'}${T.length ? ` · ${pk ? 'tindakan' : 'tindakan saya'} ${T.filter(t => t.status === 'SELESAI').length}/${T.length} selesai` : ''}</small></button>`;
+    }).join('')}</div>`).join('') : `<div class="blok">${kosongHTML('buku', pk ? 'Belum ada mesyuarat JK Kurikulum. Tambah mesyuarat pertama tahun ini.' : 'Belum ada mesyuarat JK Kurikulum direkod.')}</div>`}`;
+}
+function kurSayaHTML() {
+  const L = (K_().tindakan || []).filter(t => t.pemilikId === S.user.id).sort((a, b) => (a.status === 'SELESAI') - (b.status === 'SELESAI') || (a.tarikhAkhir || '9').localeCompare(b.tarikhAkhir || '9'));
+  return `<section class="blok" style="margin-top:0"><div class="blok-kepala"><h3>Tindakan susulan saya</h3><span class="muted">${L.filter(t => t.status !== 'SELESAI').length} belum selesai</span></div>
+    ${L.length ? tindakanSenaraiHTML(L, true) : '<p class="kosong-kecil">Tiada tindakan JK Kurikulum yang diberikan kepada anda.</p>'}</section>`;
+}
+function kurDokHTML() {
+  const K = K_(), pk = pentadbirKur(), D = K.dokSekolah || [];
+  return `${pk ? `<button class="btn utama penuh" data-act="borangDokSekolah" style="margin-bottom:12px">${ic('plus', 18)}Dokumen wajib sekolah</button>
+      <p class="nota" style="margin:-4px 4px 12px">Setiap panitia perlu menghantar dokumen ini sekali (oleh Ketua Panitia atau Setiausaha) dalam folder yang ditetapkan.</p>` : ''}
+    ${D.length ? `<section class="blok" style="margin-top:0">${D.map(d => {
+      const siap = (d.status || []).filter(x => x.siap).length, n = (d.status || []).length;
+      return `<button class="kur-baris" data-act="lihatDokSekolah" data-id="${d.id}"><b>${esc(d.tajuk)}</b><span class="muted" style="font-size:12.5px">${n ? `${siap}/${n}` : ''}</span>
+        ${n ? `<span class="kur-trek"><span style="width:${siap / n * 100}%"></span></span>` : ''}
+        <small><span>Folder ${pad(d.folderNo)}</span>${d.tarikhAkhir ? `<span>tarikh akhir ${tarikhPendek(d.tarikhAkhir)}</span>` : ''}${!pk && n ? (siap === n ? '<span class="chip">Selesai</span>' : '<span class="chip merah">Belum dihantar</span>') : ''}</small></button>`;
+    }).join('')}</section>` : `<div class="blok">${kosongHTML('clip', pk ? 'Belum ada dokumen wajib sekolah. Tetapkan dokumen seperti RPT atau analisis PBD untuk semua panitia.' : 'Tiada dokumen wajib peringkat sekolah.')}</div>`}`;
+}
+function mesyuaratSheet(id) {
+  const K = K_(), pk = pentadbirKur();
+  const m = (K.mesyuarat || []).find(x => x.id === id); if (!m) return;
+  const T = (K.tindakan || []).filter(t => t.mesyuaratId === id);
+  bukaSheet(`<h3 class="sheet-t">${esc(m.tajuk)}</h3>
+    <dl class="info"><div><dt>Tarikh</dt><dd>${tarikhPendek(m.tarikh)}${m.masa ? ', ' + esc(m.masa) : ''}</dd></div><div><dt>Tempat</dt><dd>${esc(m.tempat || '-')}</dd></div>
+      <div><dt>Status</dt><dd>${m.status === 'SELESAI' ? 'Selesai' : 'Dirancang'}</dd></div>${m.catatan ? `<div><dt>Catatan</dt><dd>${esc(m.catatan)}</dd></div>` : ''}</dl>
+    <div class="baris-btn" style="margin-top:12px">
+      ${m.minitDriveId ? `<button class="btn utama" data-act="lihatMinit" data-id="${m.id}">${ic('eye', 18)}Lihat minit</button>` : ''}
+      ${m.minitUrl ? `<a class="btn" href="${esc(m.minitUrl)}" target="_blank" rel="noopener">${ic('share', 18)}Buka pautan minit</a>` : ''}
+      ${pk ? `<label class="btn">${ic('upload', 18)}${m.minitDriveId ? 'Ganti minit' : 'Muat naik minit'}<input type="file" accept="application/pdf,image/*,.doc,.docx" data-chg="minitFail" data-id="${m.id}" hidden></label>
+        <button class="btn" data-act="borangMesyuarat" data-id="${m.id}">${ic('edit', 18)}Ubah</button><button class="btn bahaya" data-act="padamMesyuarat" data-id="${m.id}">${ic('trash', 18)}Padam</button>` : ''}
+      ${!m.minitDriveId && !m.minitUrl && !pk ? '<p class="nota">Minit belum dimuat naik.</p>' : ''}</div>
+    <div class="blok-kepala" style="margin:18px 0 8px"><h3>${pk ? 'Tindakan susulan' : 'Tindakan saya'}</h3>${pk ? `<button class="btn kecil utama" data-act="borangTindakan" data-m="${m.id}">${ic('plus', 16)}Tindakan</button>` : ''}</div>
+    ${T.length ? tindakanSenaraiHTML(T, false) : `<p class="kosong-kecil">${pk ? 'Belum ada tindakan susulan.' : 'Tiada tindakan untuk anda dalam mesyuarat ini.'}</p>`}`, { penuh: false });
+}
+function borangMesyuarat(m) {
+  const K = K_(), th = String(new Date().getFullYear());
+  const bilSeterusnya = Math.max(0, ...(K.mesyuarat || []).filter(x => x.tahun === th).map(x => x.bil)) + 1;
+  const v = k => esc(m ? m[k] || '' : '');
+  bukaSheet(`<h3 class="sheet-t">${m ? 'Ubah mesyuarat' : 'Mesyuarat JK Kurikulum baharu'}</h3><form class="borang" data-sub="hantarMesyuarat"><input type="hidden" name="id" value="${v('id')}">
+    <div class="dua"><label class="medan"><span>Bil.</span><input type="number" name="bil" min="1" max="20" value="${m ? m.bil : bilSeterusnya}" required></label>
+      <label class="medan"><span>Tarikh</span><input type="date" name="tarikh" value="${v('tarikh')}" required></label></div>
+    <label class="medan"><span>Tajuk <i>(kosongkan untuk tajuk automatik)</i></span><input name="tajuk" value="${v('tajuk')}" maxlength="200" placeholder="Mesyuarat JK Kurikulum Bil. ${m ? m.bil : bilSeterusnya}/${th}"></label>
+    <div class="dua"><label class="medan"><span>Masa</span><input name="masa" value="${v('masa')}" maxlength="60" placeholder="cth. 2.30 petang"></label>
+      <label class="medan"><span>Status</span><select name="status"><option value="DIRANCANG">Dirancang</option><option value="SELESAI" ${m && m.status === 'SELESAI' ? 'selected' : ''}>Selesai</option></select></label></div>
+    <label class="medan"><span>Tempat</span><input name="tempat" value="${v('tempat')}" maxlength="200" placeholder="cth. Bilik Mesyuarat"></label>
+    <label class="medan"><span>Pautan minit <i>(pilihan, cth. Google Docs)</i></span><input type="url" name="minitUrl" value="${v('minitUrl')}" placeholder="https://docs.google.com/…"></label>
+    <label class="medan"><span>Catatan <i>(pilihan)</i></span><textarea name="catatan" rows="2" maxlength="500">${v('catatan')}</textarea></label>
+    <p class="nota">Fail minit (PDF/Word) boleh dimuat naik selepas mesyuarat disimpan.</p>
+    <button class="btn utama" type="submit">Simpan mesyuarat</button></form>`, { fokus: !m });
+}
+function borangTindakan(mid, t) {
+  const K = K_();
+  bukaSheet(`<h3 class="sheet-t">Tindakan susulan</h3><form class="borang" data-sub="hantarTindakan"><input type="hidden" name="mesyuaratId" value="${mid}"><input type="hidden" name="id" value="${t ? t.id : ''}">
+    <label class="medan"><span>Perkara / tindakan</span><textarea name="perkara" rows="3" maxlength="400" required>${esc(t ? t.perkara : '')}</textarea></label>
+    <label class="medan"><span>Tindakan oleh</span><select name="pemilikId"><option value="">— Pilih guru —</option>${(K.guru || []).map(g => `<option value="${g.id}" ${t && t.pemilikId === g.id ? 'selected' : ''}>${esc(g.nama)}</option>`).join('')}</select></label>
+    <label class="medan"><span>Atau nama / jawatan lain <i>(jika bukan pengguna sistem)</i></span><input name="pemilikNama" value="${esc(t && !t.pemilikId ? t.pemilikNama : '')}" maxlength="120" placeholder="cth. Semua Ketua Panitia"></label>
+    <label class="medan"><span>Tarikh akhir <i>(pilihan)</i></span><input type="date" name="tarikhAkhir" value="${esc(t ? t.tarikhAkhir : '')}"></label>
+    <p class="nota">Guru yang dipilih akan nampak tindakan ini dalam "Tugasan saya" dan menerima emel peringatan.</p>
+    <button class="btn utama" type="submit">Simpan tindakan</button></form>`, { fokus: true });
+}
+function borangDokSekolah(d) {
+  const v = k => esc(d ? d[k] || '' : '');
+  bukaSheet(`<h3 class="sheet-t">${d ? 'Ubah dokumen wajib sekolah' : 'Dokumen wajib sekolah'}</h3><form class="borang" data-sub="hantarDokSekolah"><input type="hidden" name="id" value="${v('id')}">
+    <label class="medan"><span>Nama dokumen</span><input name="tajuk" value="${v('tajuk')}" maxlength="150" required placeholder="cth. Analisis PBD Pertengahan Tahun 2026"></label>
+    <label class="medan"><span>Folder</span><select name="folderNo">${FOLDERS.map(F => `<option value="${F.no}" ${(d ? d.folderNo : 6) === F.no ? 'selected' : ''}>${pad(F.no)} ${esc(F.nama)}</option>`).join('')}</select></label>
+    <label class="medan"><span>Tarikh akhir <i>(pilihan)</i></span><input type="date" name="tarikhAkhir" value="${v('tarikhAkhir')}"></label>
+    <label class="medan"><span>Catatan <i>(pilihan)</i></span><textarea name="catatan" rows="2" maxlength="400">${v('catatan')}</textarea></label>
+    <button class="btn utama" type="submit">Simpan</button></form>`, { fokus: !d });
+}
+function lihatDokSekolah(id) {
+  const K = K_(), pk = pentadbirKur();
+  const d = (K.dokSekolah || []).find(x => x.id === id); if (!d) return;
+  const st = (d.status || []).slice().sort((a, b) => (a.siap - b.siap) || a.nama.localeCompare(b.nama));
+  bukaSheet(`<h3 class="sheet-t">${esc(d.tajuk)}</h3><p class="sheet-p">Folder ${pad(d.folderNo)} ${esc(FOLDERS[d.folderNo - 1].nama)}${d.tarikhAkhir ? ' · tarikh akhir ' + tarikhPendek(d.tarikhAkhir) : ''}${d.catatan ? '<br>' + esc(d.catatan) : ''}</p>
+    <ul class="status-panitia">${st.map(x => `<li><span>Panitia ${esc(x.nama)}</span>${x.siap ? `<span class="chip">Dihantar ${tarikhPendek(x.dicipta)}</span>` : (K.panitiaSaya || []).includes(x.panitiaId)
+      ? `<button class="btn kecil utama" data-act="hantarTugasan" data-pid="${x.panitiaId}" data-id="${d.id}" data-no="${d.folderNo}">Hantar</button>` : '<span class="chip merah">Belum</span>'}</li>`).join('')}</ul>
+    ${pk ? `<div class="baris-btn" style="margin-top:14px"><button class="btn" data-act="borangDokSekolah" data-id="${d.id}">${ic('edit', 18)}Ubah</button><button class="btn bahaya" data-act="padamDokSekolah" data-id="${d.id}">${ic('trash', 18)}Padam</button></div>` : ''}`);
+}
+/** Buka panitia dan borang muat naik untuk dokumen wajib (panitia atau sekolah) */
+async function hantarTugasanKe(pid, tug, no) {
+  tutupSheet();
+  S.panitiaId = pid; ls.set('ep_panitia', pid); S.folder = null;
+  S.detail = detailTempatan(pid);
+  if (!S.detail) { sibuk('Memuatkan panitia…'); try { await muatDetail(pid, true); } catch (e) { sibuk(false); return toast(e.message, 'ralat'); } sibuk(false); }
+  pergi('dash');
+  ACT.borangMuatNaik({ dataset: { no: String(no), tug } });
+}
+
+Object.assign(ACT, {
+  subPanitia: el => { const t = el.dataset.t; S.cartaEdit = false; if (t === 'folder') { S.folder = null; S.cari = ''; } pergi(t); },
+  keKurikulum: el => { S.kurTab = el.dataset.t || S.kurTab; pergi('kurikulum'); },
+  kurTab: el => { S.kurTab = el.dataset.t; viewKurikulum(); },
+  tkBulan: el => { const [y, m] = S.tkBulan.split('-').map(Number); const t = new Date(y, m - 1 + Number(el.dataset.v), 1); S.tkBulan = `${t.getFullYear()}-${pad(t.getMonth() + 1)}`; S.tkHari = null; viewTakwim(); },
+  tkHari: el => { S.tkHari = el.dataset.v && S.tkHari !== el.dataset.v ? el.dataset.v : null; viewTakwim(); },
+  lihatAcara: el => lihatAcara(el.dataset.id, el.dataset.jenis),
+  borangProgram: el => { const x = el.dataset.id ? (K_().program || []).find(p => p.id === el.dataset.id) : null; tutupSheet(); borangProgram(x); },
+  padamProgram: async el => {
+    if (!await sahkan('Padam program?', 'Program akan dibuang daripada takwim.', 'Padam', true)) return;
+    const K = K_(), x = K.program.find(p => p.id === el.dataset.id);
+    K.program = K.program.filter(p => p.id !== el.dataset.id); simpanKur(); renderKurSemasa(); toast('Program dipadam');
+    antri('padamProgram', { id: el.dataset.id }, 'Padam program ' + (x ? x.tajuk : ''));
+  },
+  jadikanOPR: async el => {
+    const x = (K_().program || []).find(p => p.id === el.dataset.id); if (!x) return;
+    tutupSheet();
+    S.panitiaId = x.panitiaId; ls.set('ep_panitia', x.panitiaId);
+    S.detail = detailTempatan(x.panitiaId);
+    if (!S.detail) { sibuk('Memuatkan panitia…'); try { await muatDetail(x.panitiaId, true); } catch (e) { sibuk(false); return toast(e.message, 'ralat'); } sibuk(false); }
+    borangOPR(null, { tajuk: x.tajuk, kategori: x.kategori || 'PROGRAM', tarikhMula: x.tarikhMula, tarikhTamat: x.tarikhTamat, tempat: x.tempat, programId: x.id });
+  },
+  bukaOPRProgram: async el => {
+    const x = (K_().program || []).find(p => p.id === el.dataset.id); if (!x) return;
+    tutupSheet();
+    S.panitiaId = x.panitiaId; ls.set('ep_panitia', x.panitiaId);
+    S.detail = detailTempatan(x.panitiaId);
+    if (!S.detail) { sibuk('Memuatkan panitia…'); try { await muatDetail(x.panitiaId, true); } catch (e) { sibuk(false); return toast(e.message, 'ralat'); } sibuk(false); }
+    S.lapTab = 'senarai'; pergi('laporan'); lihatOPR(x.laporanId);
+  },
+  lihatMesyuarat: el => mesyuaratSheet(el.dataset.id),
+  borangMesyuarat: el => { const m = el.dataset.id ? (K_().mesyuarat || []).find(x => x.id === el.dataset.id) : null; tutupSheet(); borangMesyuarat(m); },
+  padamMesyuarat: async el => {
+    if (!await sahkan('Padam mesyuarat?', 'Mesyuarat dan tindakan susulannya dibuang daripada senarai.', 'Padam', true)) return;
+    const K = K_(), id = el.dataset.id, m = K.mesyuarat.find(x => x.id === id);
+    K.mesyuarat = K.mesyuarat.filter(x => x.id !== id); K.tindakan = (K.tindakan || []).filter(t => t.mesyuaratId !== id);
+    simpanKur(); tutupSheet(); renderKurSemasa(); toast('Mesyuarat dipadam');
+    antri('padamMesyuarat', { id }, 'Padam ' + (m ? m.tajuk : 'mesyuarat'));
+  },
+  lihatMinit: async el => {
+    sibuk('Memuatkan minit…');
+    try {
+      const r = await call('lihatMinit', { id: el.dataset.id });
+      if (/^image\//.test(r.mime)) paparZoom(`data:${r.mime};base64,${r.data}`);
+      else if (/pdf/.test(r.mime)) {
+        const bin = atob(r.data), arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        const bu = URL.createObjectURL(new Blob([arr], { type: 'application/pdf' }));
+        const w = bukaSheet(`<div class="prev-kepala"><h3>${esc(r.nama)}</h3><button class="ib" data-act="tutupSheet" aria-label="Tutup">${ic('x')}</button></div>
+          <div class="prev-badan"><iframe src="${bu}" title="${esc(r.nama)}"></iframe></div><div class="prev-aksi"><button class="btn utama" id="minitTurun">${ic('download', 18)}Muat turun</button></div>`, { penuh: true });
+        $('#minitTurun').onclick = () => simpanFail(r.data, r.mime, r.nama);
+        const pantau = setInterval(() => { if (!document.body.contains(w)) { URL.revokeObjectURL(bu); clearInterval(pantau); } }, 5000);
+      } else { simpanFail(r.data, r.mime, r.nama); toast('Minit dimuat turun'); }
+    } catch (e) { toast(e.message, 'ralat'); } finally { sibuk(false); }
+  },
+  borangTindakan: el => { const t = el.dataset.id ? (K_().tindakan || []).find(x => x.id === el.dataset.id) : null; tutupSheet(); borangTindakan(el.dataset.m || (t && t.mesyuaratId), t); },
+  togolTindakan: el => {
+    const K = K_(), t = (K.tindakan || []).find(x => x.id === el.dataset.id); if (!t) return;
+    t.status = t.status === 'SELESAI' ? 'BELUM' : 'SELESAI';
+    t.selesaiPada = t.status === 'SELESAI' ? new Date().toISOString() : ''; t.selesaiOleh = t.status === 'SELESAI' ? S.user.nama : '';
+    simpanKur(); toast(t.status === 'SELESAI' ? 'Tindakan ditanda selesai' : 'Tindakan dibuka semula');
+    const terbuka = $('.sheet-wrap') && t.mesyuaratId; if (terbuka && $('.sheet .tindakan-senarai')) mesyuaratSheet(t.mesyuaratId);
+    renderKurSemasa();
+    antri('statusTindakan', { id: t.id, status: t.status }, 'Status tindakan');
+  },
+  padamTindakan: async el => {
+    if (!await sahkan('Padam tindakan?', 'Tindakan susulan ini akan dibuang.', 'Padam', true)) return;
+    const K = K_(), t = (K.tindakan || []).find(x => x.id === el.dataset.id);
+    K.tindakan = K.tindakan.filter(x => x.id !== el.dataset.id); simpanKur(); renderKurSemasa(); toast('Tindakan dipadam');
+    if (t) mesyuaratSheet(t.mesyuaratId);
+    antri('padamTindakan', { id: el.dataset.id }, 'Padam tindakan');
+  },
+  borangDokSekolah: el => { const d = el.dataset.id ? (K_().dokSekolah || []).find(x => x.id === el.dataset.id) : null; tutupSheet(); borangDokSekolah(d); },
+  lihatDokSekolah: el => lihatDokSekolah(el.dataset.id),
+  padamDokSekolah: async el => {
+    if (!await sahkan('Padam dokumen wajib sekolah?', 'Senarai semak dokumen ini dibuang. Fail yang telah dihantar oleh panitia tidak terjejas.', 'Padam', true)) return;
+    const K = K_(), d = K.dokSekolah.find(x => x.id === el.dataset.id);
+    K.dokSekolah = K.dokSekolah.filter(x => x.id !== el.dataset.id); simpanKur(); tutupSheet(); renderKurSemasa(); toast('Dokumen dipadam');
+    antri('padamDokSekolah', { id: el.dataset.id }, 'Padam ' + (d ? d.tajuk : 'dokumen'));
+  },
+  hantarTugasan: el => hantarTugasanKe(el.dataset.pid, el.dataset.id, el.dataset.no)
+});
+Object.assign(SUB, {
+  hantarProgram: f => {
+    const K = K_(), baru = !f.id.value, id = f.id.value || idKlien('pg');
+    const data = { id, panitiaId: f.panitiaId.value, tajuk: f.tajuk.value.trim(), kategori: f.kategori.value.trim().toUpperCase() || 'PROGRAM',
+      tarikhMula: f.tarikhMula.value, tarikhTamat: f.tarikhTamat.value, masa: f.masa.value.trim(), tempat: f.tempat.value.trim(), catatan: f.catatan.value.trim() };
+    if (!data.tajuk) return toast('Isi nama program.', 'ralat');
+    if (!data.tarikhMula) return toast('Isi tarikh mula.', 'ralat');
+    if (data.tarikhTamat && data.tarikhTamat < data.tarikhMula) return toast('Tarikh tamat mesti selepas tarikh mula.', 'ralat');
+    const lama = K.program.find(p => p.id === id);
+    const obj = Object.assign({ laporanId: '', diciptaId: S.user.id, diciptaOleh: S.user.nama }, lama || {}, data, { panitia: namaPanitia(data.panitiaId) });
+    K.program = K.program.filter(p => p.id !== id).concat(obj);
+    simpanKur(); tutupSheet(); S.tkBulan = data.tarikhMula.slice(0, 7); renderKurSemasa(); toast(baru ? 'Program ditambah ke takwim' : 'Program dikemas kini');
+    antri('simpanProgram', data, 'Simpan program ' + data.tajuk);
+  },
+  hantarMesyuarat: f => {
+    const K = K_(), id = f.id.value || idKlien('mj');
+    const tarikh = f.tarikh.value, bil = Number(f.bil.value) || 1;
+    if (!tarikh) return toast('Isi tarikh mesyuarat.', 'ralat');
+    const data = { id, bil, tarikh, tajuk: f.tajuk.value.trim(), masa: f.masa.value.trim(), tempat: f.tempat.value.trim(), status: f.status.value, minitUrl: f.minitUrl.value.trim(), catatan: f.catatan.value.trim() };
+    if (data.minitUrl && !/^https?:\/\/\S+$/i.test(data.minitUrl)) return toast('Pautan minit mesti bermula dengan http:// atau https://', 'ralat');
+    const lama = (K.mesyuarat || []).find(x => x.id === id);
+    const obj = Object.assign({ minitDriveId: '', minitNama: '' }, lama || {}, data, { tahun: tarikh.slice(0, 4), tajuk: data.tajuk || `Mesyuarat JK Kurikulum Bil. ${bil}/${tarikh.slice(0, 4)}` });
+    K.mesyuarat = (K.mesyuarat || []).filter(x => x.id !== id).concat(obj).sort((a, b) => (b.tarikh > a.tarikh ? 1 : -1));
+    simpanKur(); tutupSheet(); renderKurSemasa(); toast('Mesyuarat disimpan');
+    antri('simpanMesyuarat', data, 'Simpan ' + obj.tajuk);
+  },
+  hantarTindakan: f => {
+    const K = K_(), id = f.id.value || idKlien('tk');
+    const g = (K.guru || []).find(x => x.id === f.pemilikId.value);
+    const data = { id, mesyuaratId: f.mesyuaratId.value, perkara: f.perkara.value.trim(), pemilikId: g ? g.id : '', pemilikNama: g ? g.nama : f.pemilikNama.value.trim(), tarikhAkhir: f.tarikhAkhir.value };
+    if (!data.perkara) return toast('Isi perkara tindakan.', 'ralat');
+    if (!data.pemilikNama) return toast('Pilih guru atau isi nama yang bertanggungjawab.', 'ralat');
+    const lama = (K.tindakan || []).find(x => x.id === id);
+    K.tindakan = (K.tindakan || []).filter(x => x.id !== id).concat(Object.assign({ status: 'BELUM' }, lama || {}, data));
+    simpanKur(); tutupSheet(); toast('Tindakan disimpan'); mesyuaratSheet(data.mesyuaratId); renderKurSemasa();
+    antri('simpanTindakan', data, 'Tindakan: ' + data.perkara.slice(0, 40));
+  },
+  hantarDokSekolah: f => {
+    const K = K_(), id = f.id.value || idKlien('ds');
+    const data = { id, tajuk: f.tajuk.value.trim(), folderNo: Number(f.folderNo.value), tarikhAkhir: f.tarikhAkhir.value, catatan: f.catatan.value.trim() };
+    if (!data.tajuk) return toast('Isi nama dokumen.', 'ralat');
+    const lama = (K.dokSekolah || []).find(x => x.id === id);
+    const status = lama ? lama.status : (K.papan || []).map(p => ({ panitiaId: p.id, nama: p.nama, siap: false, dicipta: '' }));
+    K.dokSekolah = (K.dokSekolah || []).filter(x => x.id !== id).concat(Object.assign({}, lama || {}, data, { status }));
+    simpanKur(); tutupSheet(); renderKurSemasa(); toast('Dokumen wajib sekolah disimpan');
+    antri('simpanDokSekolah', data, 'Dokumen wajib: ' + data.tajuk);
+  }
+});
+Object.assign(CHG, {
+  tkTapis: el => { S.tkTapis = el.value; viewTakwim(); },
+  minitFail: async el => {
+    const file = el.files[0]; if (!file) return;
+    const id = el.dataset.id;
+    sibuk('Memuat naik minit…');
+    try {
+      const fl = await sediakanFail(file);
+      const r = await call('muatNaikMinit', { id, fail: { nama: fl.nama, mime: fl.mime, data: fl.data } }, { masa: 300000 });
+      const K = K_(); K.mesyuarat = (K.mesyuarat || []).map(m => (m.id === id ? Object.assign({}, m, r) : m)); simpanKur();
+      toast('Minit dimuat naik'); mesyuaratSheet(id); renderKurSemasa();
+    } catch (e) { toast(e.message, 'ralat'); } finally { sibuk(false); el.value = ''; }
+  }
+});
+Object.assign(INP, { tkTindih: () => semakTindih() });
 
 /* ---------- Pendengar global ---------- */
 document.addEventListener('click', e => {
@@ -3039,7 +3587,7 @@ function pasangPWA() {
     const apple = document.createElement('link'); apple.rel = 'apple-touch-icon'; apple.href = ikonPNG(180); document.head.appendChild(apple);
     if (!DI_GAS()) {
       const man = {
-        name: 'e-Panitia', short_name: 'e-Panitia', start_url: location.origin + location.pathname, scope: location.origin + location.pathname.replace(/[^/]*$/, ''),
+        name: 'e-Kurikulum', short_name: 'e-Kurikulum', start_url: location.origin + location.pathname, scope: location.origin + location.pathname.replace(/[^/]*$/, ''),
         display: 'standalone', background_color: '#E9EEEA', theme_color: '#145C43',
         icons: [{ src: ikonPNG(192), sizes: '192x192', type: 'image/png' }, { src: ikonPNG(512), sizes: '512x512', type: 'image/png', purpose: 'any maskable' }]
       };
