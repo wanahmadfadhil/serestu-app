@@ -2,7 +2,7 @@
  * =====================================================================
  *  e-KURIKULUM — Sistem Pengurusan Kurikulum & Panitia Sekolah Rendah
  *  Backend Google Apps Script (Google Sheets + Google Drive)
- *  Versi 2.0.0
+ *  Versi 2.1.0
  * =====================================================================
  *
  *  CARA PASANG
@@ -44,7 +44,7 @@
  * =====================================================================
  */
 
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.1.0';
 const KATA_LALUAN_LALAI = '12345678';
 const SESI_HARI = 7;
 const TONG_HARI = 30;
@@ -73,7 +73,7 @@ const SCHEMA = {
              'objektif', 'tentatif', 'catatan', 'fotoIds', 'lakaranId', 'disediakanOleh', 'disediakanId', 'failId', 'driveId',
              'dicipta', 'dikemaskini', 'status'],
   Program:  ['id', 'panitiaId', 'tajuk', 'kategori', 'tarikhMula', 'tarikhTamat', 'masa', 'tempat', 'catatan', 'laporanId',
-             'diciptaId', 'diciptaOleh', 'dicipta', 'dikemaskini', 'status'],
+             'diciptaId', 'diciptaOleh', 'dicipta', 'dikemaskini', 'status', 'sumber'],
   Mesyuarat: ['id', 'tahun', 'bil', 'tajuk', 'tarikh', 'masa', 'tempat', 'status', 'minitUrl', 'minitDriveId', 'minitNama', 'minitMime',
               'catatan', 'diciptaOleh', 'dicipta', 'dikemaskini'],
   Tindakan: ['id', 'mesyuaratId', 'perkara', 'pemilikId', 'pemilikNama', 'tarikhAkhir', 'status', 'catatan', 'selesaiPada', 'selesaiOleh', 'dicipta'],
@@ -340,7 +340,7 @@ const ACTIONS = {
   pemantauData, senaraiPengguna, simpanPanitia, padamPanitia, lantikKP, kemaskiniPengguna, resetKataLaluan,
   simpanTetapan, luluskanPengguna, simpanLaporan, laporanDetail, padamLaporan,
   simpanProgram, padamProgram, simpanMesyuarat, padamMesyuarat, muatNaikMinit, lihatMinit,
-  simpanTindakan, statusTindakan, padamTindakan, simpanDokSekolah, padamDokSekolah
+  simpanTindakan, statusTindakan, padamTindakan, simpanDokSekolah, padamDokSekolah, importTakwim, padamImportTakwim
 };
 
 /* =====================================================================
@@ -2131,7 +2131,13 @@ function statusLaporanIkutFail_(failId, dari, ke) {
   });
 }
 
-function tarikhSah_(s) { return /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) && !isNaN(Date.parse(s + 'T00:00:00Z')) ? String(s) : ''; }
+/** Tarikh YYYY-MM-DD yang benar-benar wujud (31 Februari ditolak) */
+function tarikhSah_(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ''));
+  if (!m) return '';
+  const t = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  return t.getUTCFullYear() === +m[1] && t.getUTCMonth() === +m[2] - 1 && t.getUTCDate() === +m[3] ? String(s) : '';
+}
 /** "6 - 31 JULAI 2026", "28 JUN - 3 JULAI 2026", "9 SEPTEMBER 2026" */
 function julatTarikh_(mula, tamat) {
   const p = x => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(x || ''); return m ? { y: +m[1], m: +m[2], d: +m[3] } : null; };
@@ -2380,7 +2386,7 @@ function tarikhWajib_(s, msg) { const t = tarikhSah_(s); mesti_(t, msg || 'Isi t
 function programPub_(x, nmP) {
   return { id: x.id, panitiaId: x.panitiaId, panitia: x.panitiaId ? (nmP[x.panitiaId] || '') : '', tajuk: x.tajuk, kategori: x.kategori,
     tarikhMula: x.tarikhMula, tarikhTamat: x.tarikhTamat, masa: x.masa, tempat: x.tempat, catatan: x.catatan, laporanId: x.laporanId,
-    diciptaId: x.diciptaId, diciptaOleh: x.diciptaOleh };
+    diciptaId: x.diciptaId, diciptaOleh: x.diciptaOleh, sumber: x.sumber || '' };
 }
 function mesyuaratPub_(m) {
   return { id: m.id, tahun: m.tahun, bil: Number(m.bil) || 0, tajuk: m.tajuk, tarikh: m.tarikh, masa: m.masa, tempat: m.tempat, status: m.status,
@@ -2598,4 +2604,44 @@ function padamDokSekolah(q, u) {
   update_('DokSekolah', d.id, { status: 'PADAM' });
   log_(u, '', '', 'PADAM DOK. WAJIB SEKOLAH', d.tajuk);
   return { ok: true };
+}
+
+/* ---------- Import takwim persekolahan (KPM) secara pukal ---------- */
+const KATEGORI_KPM = ['PERSEKOLAHAN', 'CUTI', 'PENTAKSIRAN', 'KPM'];
+/** Pentadbir memasukkan banyak acara sekali gus (cth. Takwim Persekolahan KPM). Acara sama (tajuk + tarikh) dilangkau. */
+function importTakwim(q, u) {
+  kurAdmin_(u);
+  const baris = (Array.isArray(q.baris) ? q.baris : []).slice(0, 400);
+  mesti_(baris.length, 'Tiada acara untuk diimport.');
+  const ada = {};
+  rows_('Program').filter(x => x.status === 'AKTIF' && !x.panitiaId).forEach(x => { ada[String(x.tajuk).toLowerCase() + '|' + x.tarikhMula] = 1; });
+  const baru = [], langkau = [];
+  baris.forEach((r, i) => {
+    const tajuk = bersih_(r.tajuk, 200), mula = tarikhSah_(r.tarikhMula);
+    let tamat = tarikhSah_(r.tarikhTamat);
+    if (!tajuk || !mula) { langkau.push('Baris ' + (i + 1) + ': tajuk atau tarikh tidak sah'); return; }
+    if (tamat && tamat < mula) tamat = '';
+    const k = tajuk.toLowerCase() + '|' + mula;
+    if (ada[k]) { langkau.push('Baris ' + (i + 1) + ': sudah ada dalam takwim (' + tajuk + ')'); return; }
+    ada[k] = 1;
+    const kat = bersih_(r.kategori, 40).toUpperCase();
+    baru.push({
+      id: uid_(16), panitiaId: '', tajuk, kategori: KATEGORI_KPM.indexOf(kat) >= 0 ? kat : 'KPM', tarikhMula: mula, tarikhTamat: tamat,
+      masa: '', tempat: '', catatan: bersih_(r.catatan, 300), laporanId: '', diciptaId: u.id, diciptaOleh: u.nama,
+      dicipta: now_(), dikemaskini: now_(), status: 'AKTIF', sumber: 'KPM'
+    });
+  });
+  insertMany_('Program', baru);
+  if (baru.length) log_(u, '', '', 'IMPORT TAKWIM', baru.length + ' acara takwim persekolahan diimport');
+  return { ditambah: baru.length, dilangkau: langkau };
+}
+/** Buang semua acara import KPM bagi satu tahun (untuk import semula jika tersilap) */
+function padamImportTakwim(q, u) {
+  kurAdmin_(u);
+  const th = String(q.tahun || '');
+  mesti_(/^\d{4}$/.test(th), 'Tahun tidak sah.');
+  const sasar = rows_('Program').filter(x => x.status === 'AKTIF' && x.sumber === 'KPM' && String(x.tarikhMula).slice(0, 4) === th);
+  sasar.forEach(x => update_('Program', x.id, { status: 'BATAL', dikemaskini: now_() }));
+  if (sasar.length) log_(u, '', '', 'PADAM IMPORT TAKWIM', sasar.length + ' acara takwim KPM ' + th + ' dibuang');
+  return { dibuang: sasar.length };
 }
