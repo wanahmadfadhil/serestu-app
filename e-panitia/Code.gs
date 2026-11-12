@@ -2,7 +2,7 @@
  * =====================================================================
  *  e-PANITIA — Sistem Pengurusan Panitia Sekolah Rendah
  *  Backend Google Apps Script (Google Sheets + Google Drive)
- *  Versi 1.5.2
+ *  Versi 1.6.0
  * =====================================================================
  *
  *  CARA PASANG
@@ -20,17 +20,32 @@
  *       Who has access: Anyone  (atau "Anyone within <domain>" jika hos
  *       dalam Apps Script dan semua guru guna akaun domain yang sama)
  *  6. Pengguna PERTAMA yang mendaftar akan dijadikan Super Admin.
+ *     Pendaftaran seterusnya perlu DILULUSKAN oleh Super Admin
+ *     (Profil > Pentadbiran sistem > Pengguna).
+ *  7. Guru yang diimport dari tab "Data Guru": kata laluan awal ialah
+ *     6 DIGIT AKHIR No. KP dan wajib ditukar semasa log masuk pertama.
+ *
+ *  TRIGGER AUTOMATIK (dipasang oleh setupSistem)
+ *   - bersihkanTong       : setiap hari 2 pagi
+ *   - peringatanTugasan   : setiap hari 7 pagi (emel dokumen wajib hampir tarikh akhir)
+ *   - sandaranMingguan    : setiap Ahad 4 pagi (salinan Sheet ke folder _SANDARAN)
+ *   - arkibLog            : 1 haribulan setiap bulan (log > 1 tahun ke tab "Arkib Log")
  *
  *  Nota: setiap kali kod dikemas kini, buat "Manage deployments > Edit >
  *  Version: New version" supaya URL Web App kekal sama.
  * =====================================================================
  */
 
-const APP_VERSION = '1.5.2';
+const APP_VERSION = '1.6.0';
 const KATA_LALUAN_LALAI = '12345678';
 const SESI_HARI = 7;
 const TONG_HARI = 30;
 const MAKS_FAIL_MB = 10;
+const HASH_ULANG = 1000;        // bilangan ulangan hash kata laluan (lebih tinggi = lebih selamat tetapi log masuk lebih lambat)
+const ARKIB_LOG_HARI = 365;     // log lebih lama daripada ini dipindahkan ke tab "Arkib Log"
+const SIMPAN_SANDARAN = 8;      // bilangan sandaran mingguan yang disimpan
+const HARI_PERINGATAN = [7, 3, 1, 0]; // emel peringatan dihantar X hari sebelum tarikh akhir dokumen wajib
+const ZON = 'Asia/Kuala_Lumpur';
 
 /* ---------- Skema jadual (dijana automatik) ---------- */
 const SCHEMA = {
@@ -74,6 +89,9 @@ const TETAPAN_ASAS = [
   ['gbFoto', '', 'ID foto Guru Besar (jika tidak dipautkan kepada pengguna)'],
   ['pkFoto', '', 'ID foto PK Pentadbiran (jika tidak dipautkan kepada pengguna)'],
   ['sukFoto', '', 'ID foto SU Kurikulum (jika tidak dipautkan kepada pengguna)'],
+  ['domainEmel', '', 'Hadkan pendaftaran kepada domain emel ini, cth. moe-dl.edu.my (kosong = semua emel)'],
+  ['emelPeringatan', 'YA', 'YA = hantar emel peringatan dokumen wajib kepada guru'],
+  ['benamkan', 'TIDAK', 'YA hanya jika aplikasi dibenamkan dalam Google Sites / iframe laman lain'],
   ['jadualCsvUrl', 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTi4sLUWGblVsM6gyTxstwXtt8n57CgKRF4w3YwnsQ49HvOWyZEdlH3ljmjvIlysfPbLMAasSvV5NE8/pub?gid=635713887&single=true&output=csv', 'Pautan CSV jadual waktu (Google Sheet > File > Share > Publish to web > CSV)']
 ];
 
@@ -89,14 +107,23 @@ function setupSistem() {
   if (!rows_('Panitia').length) {
     PANITIA_ASAS.forEach(([n, k]) => insert_('Panitia', { id: uid_(), nama: n, kod: k, status: 'AKTIF', dicipta: now_() }));
   }
-  ScriptApp.getProjectTriggers().forEach(t => {
-    if (t.getHandlerFunction() === 'bersihkanTong') ScriptApp.deleteTrigger(t);
+  const pasang = (fn, bina) => {
+    ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === fn) ScriptApp.deleteTrigger(t); });
+    bina(() => ScriptApp.newTrigger(fn));
+  };
+  pasang('bersihkanTong', b => b().timeBased().everyDays(1).atHour(2).inTimezone(ZON).create());
+  pasang('peringatanTugasan', b => b().timeBased().everyDays(1).atHour(7).inTimezone(ZON).create());
+  pasang('sandaranMingguan', b => b().timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(4).inTimezone(ZON).create());
+  pasang('arkibLog', b => b().timeBased().onMonthDay(1).atHour(3).inTimezone(ZON).create());
+  pasang('cacheBerubah', b => {
+    b().forSpreadsheet(getSS_()).onChange().create();
+    b().forSpreadsheet(getSS_()).onEdit().create();
   });
-  ScriptApp.newTrigger('bersihkanTong').timeBased().everyDays(1).atHour(2).create();
-  ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === 'cacheBerubah') ScriptApp.deleteTrigger(t); });
-  ScriptApp.newTrigger('cacheBerubah').forSpreadsheet(getSS_()).onChange().create();
-  ScriptApp.newTrigger('cacheBerubah').forSpreadsheet(getSS_()).onEdit().create();
+  const nLalai = lalaiKeNoKP_();
+  tutupKongsiJadual_();
   selesai_();
+  if (nLalai) Logger.log('🔑 ' + nLalai + ' akaun yang belum log masuk kini guna kata laluan awal 6 digit akhir No. KP.');
+  try { MailApp.getRemainingDailyQuota(); } catch (e) { Logger.log('⚠️ Kebenaran emel belum diberi: ' + e.message); }
   Logger.log('✅ Sistem siap.');
   Logger.log('Spreadsheet : ' + getSS_().getUrl());
   Logger.log('Folder Drive: ' + induk.getUrl());
@@ -133,7 +160,7 @@ function ujiJadual() {
   const n = Object.keys(idx.slot).length;
   const baris = Object.keys(idx.slot).reduce((t, k) => t + idx.slot[k].length, 0);
   Logger.log('✅ Jadual dibaca: ' + n + ' guru, ' + baris + ' slot.');
-  const guru = rows_('Pengguna').filter(u => u.status !== 'NYAHAKTIF');
+  const guru = rows_('Pengguna').filter(aktif_);
   const tiada = guru.filter(u => !padanJadual_(u, idx)).map(u => u.nama);
   Logger.log('✅ ' + (guru.length - tiada.length) + '/' + guru.length + ' pengguna sistem dipadankan dengan jadual.');
   if (tiada.length) Logger.log('⚠️ Belum dipadankan (guru boleh pilih nama sendiri di Profil):\n' + tiada.join('\n'));
@@ -148,6 +175,10 @@ function onOpen() {
       .addItem('Kosongkan cache', 'kosongkanCache')
       .addItem('Uji bacaan jadual waktu', 'ujiJadual')
       .addItem('Bersihkan tong sampah sekarang', 'bersihkanTong')
+      .addSeparator()
+      .addItem('Hantar emel peringatan dokumen wajib sekarang', 'peringatanTugasan')
+      .addItem('Buat sandaran sekarang', 'sandaranMingguan')
+      .addItem('Arkibkan log lama sekarang', 'arkibLog')
       .addToUi();
   } catch (e) { /* bukan konteks UI */ }
 }
@@ -155,8 +186,8 @@ function onOpen() {
 /**
  * IMPORT GURU PUKAL daripada tab "Data Guru" (dalam spreadsheet yang sama).
  * Lajur dikesan melalui tajuk baris pertama: Emel/Email, Nama, No KP/NoKP/IC.
- * Semua guru didaftarkan dengan kata laluan lalai 12345678 dan WAJIB
- * menukarnya semasa log masuk kali pertama.
+ * Kata laluan awal setiap guru ialah 6 DIGIT AKHIR No. KP dan WAJIB
+ * ditukar semasa log masuk kali pertama.
  * Guru yang emel atau No. KP-nya sudah wujud akan dilangkau (tidak ditindih).
  * Selamat dijalankan berulang kali — hanya guru baharu ditambah.
  */
@@ -180,7 +211,7 @@ function importDataGuru() {
   const emelAda = {}, kpAda = {};
   ada.forEach(u => { emelAda[u.emel] = 1; kpAda[u.noKP] = 1; });
   const pemilik = String(Session.getEffectiveUser().getEmail() || '').toLowerCase();
-  let adaAdmin = ada.some(u => u.peranan === 'SUPER_ADMIN' && u.status !== 'NYAHAKTIF');
+  let adaAdmin = ada.some(u => u.peranan === 'SUPER_ADMIN' && aktif_(u));
 
   const baru = [], langkau = [];
   for (let i = 1; i < v.length; i++) {
@@ -197,11 +228,10 @@ function importDataGuru() {
     if (!/^\d{12}$/.test(kp)) { langkau.push(baris + ': No. KP bukan 12 digit'); continue; }
     if (emelAda[emel]) { langkau.push(baris + ': emel sudah berdaftar'); continue; }
     if (kpAda[kp]) { langkau.push(baris + ': No. KP sudah berdaftar'); continue; }
-    const salt = uid_(16);
     let peranan = 'GURU';
     if (!adaAdmin && emel === pemilik) { peranan = 'SUPER_ADMIN'; adaAdmin = true; }
     baru.push({
-      id: uid_(), nama, noKP: kp, emel, telefon: '', peranan, hash: hash_(KATA_LALUAN_LALAI, salt), salt,
+      id: uid_(), nama, noKP: kp, emel, telefon: '', peranan, hash: 'LALAI', salt: '', // LALAI = 6 digit akhir No. KP
       status: 'AKTIF', dicipta: now_(), dikemaskini: now_(), wajibTukar: 'YA'
     });
     emelAda[emel] = 1; kpAda[kp] = 1;
@@ -209,7 +239,7 @@ function importDataGuru() {
   insertMany_('Pengguna', baru);
   if (baru.length) log_('Sistem', '', '', 'IMPORT GURU', baru.length + ' guru didaftarkan dari tab ' + sh.getName());
 
-  Logger.log('✅ ' + baru.length + ' guru berjaya didaftarkan (kata laluan lalai: ' + KATA_LALUAN_LALAI + ').');
+  Logger.log('✅ ' + baru.length + ' guru berjaya didaftarkan (kata laluan awal: 6 digit akhir No. KP).');
   if (langkau.length) Logger.log('⚠️ ' + langkau.length + ' baris dilangkau:\n' + langkau.join('\n'));
   if (!adaAdmin) Logger.log('❗ Tiada Super Admin. Tukar lajur "peranan" akaun anda kepada SUPER_ADMIN dalam jadual Pengguna.');
   else if (baru.some(u => u.peranan === 'SUPER_ADMIN')) Logger.log('👑 ' + pemilik + ' dijadikan Super Admin.');
@@ -224,11 +254,16 @@ function importDataGuru() {
 function doGet(e) {
   const p = (e && e.parameter) || {};
   if (p.api === 'ping') return json_({ ok: true, app: 'e-Panitia', versi: APP_VERSION });
+  let benam = false;
+  try { ensureSchema_(); benam = String(tetapan_().benamkan || '').toUpperCase() === 'YA'; } catch (e) { /* guna lalai */ }
+  try { selesai_(); } catch (e) { /* */ }
   try {
-    return HtmlService.createHtmlOutputFromFile('index')
+    const out = HtmlService.createHtmlOutputFromFile('index')
       .setTitle('e-Panitia')
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
+    // Benarkan dibenamkan dalam iframe (Google Sites) hanya jika ditetapkan — elak clickjacking
+    if (benam) out.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    return out;
   } catch (err) {
     return json_({ ok: true, app: 'e-Panitia', versi: APP_VERSION, nota: 'Fail HTML "index" tiada. Guna mod hos luar.' });
   }
@@ -282,7 +317,7 @@ const ACTIONS = {
   imej, muatTurun, panitiaDetail, simpanCarta, lantikSU, sahkanAhli, calonAhli, tambahAhli, keluarkanAhli, muatNaikFail, tambahPautan, padamFail,
   pulihFail, padamKekal, tambahTugasan, padamTugasan, janaLaporan, eksportCartaPdf, janaPemantau, batalPemantau,
   pemantauData, senaraiPengguna, simpanPanitia, padamPanitia, lantikKP, kemaskiniPengguna, resetKataLaluan,
-  simpanTetapan
+  simpanTetapan, luluskanPengguna
 };
 
 /* =====================================================================
@@ -588,6 +623,45 @@ function hash_(pw, salt) {
   return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + '::' + pw, Utilities.Charset.UTF_8)
     .map(b => ('0' + (b & 255).toString(16)).slice(-2)).join('');
 }
+/** Hash v2: SHA-256 berulang HASH_ULANG kali. Format: v2$<ulangan>$<hex> */
+function hashV2_(pw, salt, n) {
+  n = Number(n) || HASH_ULANG;
+  const sb = Utilities.newBlob(String(salt)).getBytes();
+  let h = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + '::' + pw, Utilities.Charset.UTF_8);
+  for (let i = 1; i < n; i++) h = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, h.concat(sb));
+  return 'v2$' + n + '$' + h.map(b => ('0' + (b & 255).toString(16)).slice(-2)).join('');
+}
+function kataBaru_(pw) { const salt = uid_(16); return { hash: hashV2_(String(pw), salt), salt }; }
+function kataLalai_(u) { return String((u && u.noKP) || '').replace(/\D/g, '').slice(-6); }
+/** Semak kata laluan: LALAI (6 digit akhir No. KP), v2 (berulang) atau format lama (SHA-256 sekali) */
+function kataSah_(u, pw) {
+  pw = String(pw || '');
+  if (!u || !u.hash || !pw) return false;
+  if (u.hash === 'LALAI') return kataLalai_(u).length === 6 && pw === kataLalai_(u);
+  if (u.hash.indexOf('v2$') === 0) return hashV2_(pw, u.salt, u.hash.split('$')[1]) === u.hash;
+  return hash_(pw, u.salt) === u.hash;
+}
+/** Pengguna boleh log masuk / dikira ahli: bukan NYAHAKTIF dan bukan MENUNGGU kelulusan */
+function aktif_(u) { return !!u && u.status !== 'NYAHAKTIF' && u.status !== 'MENUNGGU'; }
+function namaSekolah_() { return tetapan_().namaSekolah || 'Sekolah'; }
+
+/** Hantar emel (MailApp). Gagal secara senyap jika kuota habis atau kebenaran belum diberi. */
+function hantarEmel_(kepada, subjek, isiHtml) {
+  try {
+    if (!kepada || MailApp.getRemainingDailyQuota() < 1) return false;
+    const url = urlApp_();
+    MailApp.sendEmail({
+      to: kepada, subject: subjek, name: 'e-Panitia ' + namaSekolah_(),
+      htmlBody: '<div style="font-family:Arial,sans-serif;font-size:14px;color:#1c2b39;max-width:560px">' +
+        '<div style="background:#145C43;color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;font-weight:bold">e-Panitia · ' + esc_(namaSekolah_()) + '</div>' +
+        '<div style="border:1px solid #d3dbd5;border-top:0;padding:16px;border-radius:0 0 10px 10px">' + isiHtml +
+        (url ? '<p style="margin-top:18px"><a href="' + esc_(url) + '" style="background:#145C43;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none">Buka e-Panitia</a></p>' : '') +
+        '<p style="color:#6a7771;font-size:12px;margin-top:18px">Emel automatik daripada sistem e-Panitia. Jangan balas emel ini.</p></div></div>'
+    });
+    return true;
+  } catch (e) { Logger.log('Emel gagal ke ' + kepada + ': ' + e.message); return false; }
+}
+
 function mesti_(c, msg) { if (!c) throw new Error(msg || 'Anda tiada kebenaran untuk tindakan ini.'); }
 function bersih_(s, max) { return String(s === null || s === undefined ? '' : s).trim().slice(0, max || 500); }
 function esc_(s) {
@@ -645,7 +719,7 @@ function auth_(token) {
   const s = rows_('Sesi').find(r => r.token === token);
   mesti_(s && new Date(s.tamat).getTime() > Date.now(), 'SESI_TAMAT');
   const u = userById_(s.userId);
-  mesti_(u && u.status !== 'NYAHAKTIF', 'SESI_TAMAT');
+  mesti_(aktif_(u), 'SESI_TAMAT');
   return u;
 }
 function admin_(u) { mesti_(u && u.peranan === 'SUPER_ADMIN', 'Hanya Super Admin boleh melakukan tindakan ini.'); }
@@ -668,7 +742,7 @@ function ahliPanitia_(p) {
   const ids = [];
   rows_('Keahlian').forEach(k => { if (k.panitiaId === p.id && k.status === 'SAH' && ids.indexOf(k.userId) < 0) ids.push(k.userId); });
   [p.ketuaId, p.setiausahaId].forEach(id => { if (id && ids.indexOf(id) < 0) ids.push(id); });
-  return ids.map(userById_).filter(u => u && u.status !== 'NYAHAKTIF');
+  return ids.map(userById_).filter(aktif_);
 }
 
 function pentadbir_() {
@@ -763,7 +837,7 @@ function saizB64_(b64) { return Math.floor(String(b64 || '').replace(/^data:[^,]
  * ===================================================================== */
 function awam() {
   const t = tetapan_();
-  return { namaSekolah: t.namaSekolah, versi: APP_VERSION, panitia: senaraiAktif_().map(p => ({ id: p.id, nama: p.nama, kod: p.kod })) };
+  return { namaSekolah: t.namaSekolah, versi: APP_VERSION, domainEmel: t.domainEmel || '', panitia: senaraiAktif_().map(p => ({ id: p.id, nama: p.nama, kod: p.kod })) };
 }
 
 function daftar(q) {
@@ -778,18 +852,35 @@ function daftar(q) {
   mesti_(tel.replace(/\D/g, '').length >= 9, 'Isi nombor telefon bimbit yang sah.');
   mesti_(String(q.kataLaluan || '').length >= 6, 'Kata laluan sekurang-kurangnya 6 aksara.');
   const semua = rows_('Pengguna');
-  mesti_(!semua.find(u => u.emel === emel), 'Emel ini sudah didaftarkan. Sila log masuk.');
+  const pertama = !semua.length;
+  const dom = String(tetapan_().domainEmel || '').toLowerCase().split(/[\s,]+/).filter(Boolean);
+  if (dom.length && !pertama) mesti_(dom.some(d => emel.endsWith('@' + d)), 'Pendaftaran hanya untuk emel @' + dom.join(' atau @') + '.');
+  const ada = semua.find(u => u.emel === emel);
+  if (ada && ada.status === 'MENUNGGU') throw new Error('Pendaftaran dengan emel ini sedang menunggu kelulusan Super Admin.');
+  mesti_(!ada, 'Emel ini sudah didaftarkan. Sila log masuk.');
   mesti_(!semua.find(u => u.noKP === noKP), 'No. Kad Pengenalan ini sudah didaftarkan.');
-  const salt = uid_(16);
-  const u = {
-    id: uid_(), nama, noKP, emel, telefon: tel, peranan: semua.length ? 'GURU' : 'SUPER_ADMIN',
-    hash: hash_(String(q.kataLaluan), salt), salt, status: 'AKTIF', dicipta: now_(), dikemaskini: now_()
-  };
+  const u = Object.assign({
+    id: uid_(), nama, noKP, emel, telefon: tel, peranan: pertama ? 'SUPER_ADMIN' : 'GURU',
+    status: pertama ? 'AKTIF' : 'MENUNGGU', dicipta: now_(), dikemaskini: now_()
+  }, kataBaru_(q.kataLaluan));
   insert_('Pengguna', u);
   const disimpan = userById_(u.id);
   segerakSubjek_(disimpan, q.subjek);
-  log_(disimpan, '', '', 'DAFTAR', 'Pendaftaran akaun baharu');
-  return bukaSesi_(disimpan);
+  log_(disimpan, '', '', 'DAFTAR', pertama ? 'Super Admin pertama' : 'Pendaftaran baharu menunggu kelulusan');
+  if (pertama) return bukaSesi_(disimpan);
+  maklumAdminDaftar_(disimpan);
+  return { menunggu: true, mesej: 'Pendaftaran diterima. Akaun anda akan diaktifkan selepas diluluskan oleh Super Admin sekolah. Anda akan menerima emel apabila diluluskan.' };
+}
+
+function maklumAdminDaftar_(g) {
+  const admin = rows_('Pengguna').filter(x => x.peranan === 'SUPER_ADMIN' && aktif_(x) && x.emel).map(x => x.emel);
+  if (!admin.length) return;
+  hantarEmel_(admin.join(','), 'Pendaftaran baharu menunggu kelulusan: ' + g.nama,
+    '<p>Seorang pengguna baharu telah mendaftar dan menunggu kelulusan anda:</p>' +
+    '<table style="border-collapse:collapse;margin:8px 0"><tr><td style="padding:4px 12px 4px 0;color:#6a7771">Nama</td><td><b>' + esc_(g.nama) + '</b></td></tr>' +
+    '<tr><td style="padding:4px 12px 4px 0;color:#6a7771">Emel</td><td>' + esc_(g.emel) + '</td></tr>' +
+    '<tr><td style="padding:4px 12px 4px 0;color:#6a7771">Telefon</td><td>' + esc_(g.telefon) + '</td></tr></table>' +
+    '<p>Buka <b>Profil &gt; Pentadbiran sistem &gt; Pengguna</b> untuk meluluskan atau menolak.</p>');
 }
 
 /** Had cubaan: selepas MAKS_CUBA kegagalan, kunci HAD_CUBA_MIN minit (CacheService) */
@@ -806,13 +897,17 @@ function gagalCuba_(kunci) {
 function login(q) {
   const emel = bersih_(q.emel, 120).toLowerCase();
   semakCuba_('L_' + emel);
-  const u = rows_('Pengguna').find(x => x.emel === emel);
-  if (!(u && u.hash === hash_(String(q.kataLaluan || ''), u.salt))) {
+  let u = rows_('Pengguna').find(x => x.emel === emel);
+  if (!kataSah_(u, q.kataLaluan)) {
     gagalCuba_('L_' + emel);
     throw new Error('Emel atau kata laluan tidak betul.');
   }
   cache_().remove('CUBA_L_' + emel);
+  mesti_(u.status !== 'MENUNGGU', 'Akaun anda masih menunggu kelulusan Super Admin sekolah.');
   mesti_(u.status !== 'NYAHAKTIF', 'Akaun anda telah dinyahaktifkan. Hubungi pentadbir sistem.');
+  if (u.hash !== 'LALAI' && String(u.hash).indexOf('v2$') !== 0) {
+    u = update_('Pengguna', u.id, kataBaru_(q.kataLaluan)); // naik taraf hash lama secara senyap
+  }
   return bukaSesi_(u);
 }
 
@@ -899,12 +994,12 @@ function kemaskiniProfil(q, u) {
 }
 
 function tukarKataLaluan(q, u) {
-  if (u.wajibTukar !== 'YA') mesti_(u.hash === hash_(String(q.lama || ''), u.salt), 'Kata laluan semasa tidak betul.');
-  mesti_(String(q.baru || '').length >= 6, 'Kata laluan baharu sekurang-kurangnya 6 aksara.');
-  mesti_(String(q.baru) !== KATA_LALUAN_LALAI, 'Kata laluan baharu tidak boleh sama dengan kata laluan lalai.');
-  mesti_(u.hash !== hash_(String(q.baru), u.salt), 'Kata laluan baharu mesti berbeza daripada yang lama.');
-  const salt = uid_(16);
-  update_('Pengguna', u.id, { hash: hash_(String(q.baru), salt), salt, wajibTukar: '', dikemaskini: now_() });
+  if (u.wajibTukar !== 'YA') mesti_(kataSah_(u, q.lama), 'Kata laluan semasa tidak betul.');
+  const baru = String(q.baru || '');
+  mesti_(baru.length >= 6, 'Kata laluan baharu sekurang-kurangnya 6 aksara.');
+  mesti_(baru !== KATA_LALUAN_LALAI && baru !== kataLalai_(u), 'Kata laluan baharu tidak boleh sama dengan kata laluan awal (6 digit akhir No. KP).');
+  mesti_(!kataSah_(u, baru), 'Kata laluan baharu mesti berbeza daripada yang lama.');
+  update_('Pengguna', u.id, Object.assign(kataBaru_(baru), { wajibTukar: '', dikemaskini: now_() }));
   deleteWhere_('Sesi', s => s.userId === u.id && s.token !== q.token);
   return true;
 }
@@ -932,7 +1027,7 @@ function muatNaikJadual(q, u) {
   const mime = String(q.mime || '');
   mesti_(/^(application\/pdf|image\/(jpeg|png|webp))$/.test(mime), 'Jadual waktu mesti PDF, JPEG atau PNG.');
   mesti_(saizB64_(q.data) <= MAKS_FAIL_MB * 1048576, 'Saiz fail melebihi ' + MAKS_FAIL_MB + 'MB.');
-  const f = simpanBlob_(folderSistem_('_JADUAL_WAKTU', true), q.data, mime, 'Jadual_' + u.nama + '_' + Date.now());
+  const f = simpanBlob_(folderSistem_('_JADUAL_WAKTU'), q.data, mime, 'Jadual_' + u.nama + '_' + Date.now());
   const lama = u.jadualId;
   update_('Pengguna', u.id, { jadualId: f.getId(), jadualMime: mime, dikemaskini: now_() });
   buangDrive_(lama);
@@ -946,6 +1041,7 @@ function lihatJadual(q, u) {
   mesti_(bolehUrusGuru_(u, s.id) || senaraiAktif_().some(p => akses_(u, p).lihat && ahliPanitia_(p).some(a => a.id === s.id)));
   let fd;
   try { fd = DriveApp.getFileById(s.jadualId); } catch (e) { throw new Error('Salinan jadual waktu tidak lagi wujud dalam Google Drive. Muat naik semula.'); }
+  mesti_(fd.getSize() < 15 * 1048576, 'Salinan jadual terlalu besar untuk dipaparkan.');
   const b = fd.getBlob();
   return { nama: 'Jadual Waktu ' + s.nama, mime: b.getContentType(), driveId: s.jadualId, data: Utilities.base64Encode(b.getBytes()) };
 }
@@ -1020,7 +1116,7 @@ function sync(q, u) {
 
 const BOLEH_BATCH = ['kemaskiniProfil', 'simpanCarta', 'lantikSU', 'sahkanAhli', 'tambahAhli', 'keluarkanAhli',
   'padamFail', 'pulihFail', 'padamKekal', 'tambahTugasan', 'padamTugasan', 'batalPemantau',
-  'simpanPanitia', 'padamPanitia', 'lantikKP', 'kemaskiniPengguna', 'simpanTetapan'];
+  'simpanPanitia', 'padamPanitia', 'lantikKP', 'kemaskiniPengguna', 'simpanTetapan', 'luluskanPengguna'];
 
 /** Jalankan beberapa perubahan dari outbox klien dalam satu permintaan. ID operasi menghalang hantar berganda. */
 function batch(q, u) {
@@ -1181,7 +1277,8 @@ function panitiaDetail(q, u) {
     sekolah: tetapan_().namaSekolah,
     ahli: ahli.map(m => Object.assign(pub_(m), { tahun: (keah.find(k => k.userId === m.id) || {}).tahun || '' })),
     menunggu: a.urus ? keah.filter(k => k.status === 'MENUNGGU')
-      .map(k => ({ id: k.id, tahun: k.tahun, user: ringkas_(userById_(k.userId)) })).filter(x => x.user) : [],
+      .filter(k => aktif_(userById_(k.userId)))
+      .map(k => ({ id: k.id, tahun: k.tahun, user: ringkas_(userById_(k.userId)) })) : [],
     pentadbir: pentadbir_(),
     carta: cartaBina_(p, ahli),
     fail,
@@ -1265,7 +1362,7 @@ function calonAhli(q, u) {
   const ahliIds = ahliPanitia_(p).map(a => a.id);
   const tunggu = {};
   rows_('Keahlian').forEach(k => { if (k.panitiaId === p.id && k.status === 'MENUNGGU') tunggu[k.userId] = 1; });
-  return rows_('Pengguna').filter(x => x.status !== 'NYAHAKTIF' && ahliIds.indexOf(x.id) < 0)
+  return rows_('Pengguna').filter(x => aktif_(x) && ahliIds.indexOf(x.id) < 0)
     .map(x => ({ id: x.id, nama: x.nama, emel: x.emel, opsyen: x.opsyen, fotoId: x.fotoId, menunggu: !!tunggu[x.id] }))
     .sort((a, b) => (b.menunggu - a.menunggu) || a.nama.localeCompare(b.nama));
 }
@@ -1280,7 +1377,7 @@ function tambahAhli(q, u) {
   const baru = [], nama = [];
   ids.forEach(id => {
     const g = userById_(id);
-    if (!g || g.status === 'NYAHAKTIF') return;
+    if (!aktif_(g)) return;
     const k = rows_('Keahlian').find(x => x.panitiaId === p.id && x.userId === id);
     if (k) {
       const patch = { status: 'SAH' };
@@ -1652,7 +1749,7 @@ function lantikKP(q, u) {
     return balasAdmin_(q, u);
   }
   const g = userById_(q.userId);
-  mesti_(g && g.status !== 'NYAHAKTIF', 'Guru tidak dijumpai.');
+  mesti_(aktif_(g), 'Guru tidak dijumpai atau belum diluluskan.');
   const patch = { ketuaId: g.id };
   if (p.setiausahaId === g.id) patch.setiausahaId = '';
   update_('Panitia', p.id, patch);
@@ -1670,11 +1767,32 @@ function kemaskiniPengguna(q, u) {
   const patch = {};
   if (q.peranan) patch.peranan = q.peranan === 'SUPER_ADMIN' ? 'SUPER_ADMIN' : 'GURU';
   if (q.status) patch.status = q.status === 'NYAHAKTIF' ? 'NYAHAKTIF' : 'AKTIF';
-  const bakiAdmin = rows_('Pengguna').filter(x => x.peranan === 'SUPER_ADMIN' && x.status !== 'NYAHAKTIF' && x.id !== g.id).length;
+  const bakiAdmin = rows_('Pengguna').filter(x => x.peranan === 'SUPER_ADMIN' && aktif_(x) && x.id !== g.id).length;
   if ((patch.peranan === 'GURU' || patch.status === 'NYAHAKTIF') && g.peranan === 'SUPER_ADMIN') mesti_(bakiAdmin > 0, 'Sistem mesti mempunyai sekurang-kurangnya seorang Super Admin aktif.');
   update_('Pengguna', g.id, patch);
   if (patch.status === 'NYAHAKTIF') deleteWhere_('Sesi', s => s.userId === g.id);
   log_(u, '', '', 'KEMAS KINI PENGGUNA', g.nama + ' ' + JSON.stringify(patch));
+  return balasAdmin_(q, u);
+}
+
+/** Super Admin meluluskan atau menolak pendaftaran baharu */
+function luluskanPengguna(q, u) {
+  admin_(u);
+  const g = userById_(q.userId);
+  mesti_(g, 'Pengguna tidak dijumpai.');
+  mesti_(g.status === 'MENUNGGU', 'Akaun ini tidak menunggu kelulusan.');
+  if (q.lulus) {
+    update_('Pengguna', g.id, { status: 'AKTIF', dikemaskini: now_() });
+    log_(u, '', '', 'LULUS PENDAFTARAN', g.nama);
+    hantarEmel_(g.emel, 'Akaun e-Panitia anda telah diluluskan',
+      '<p>Assalamualaikum dan salam sejahtera ' + esc_(g.nama) + ',</p><p>Pendaftaran akaun e-Panitia anda telah <b>diluluskan</b>. ' +
+      'Anda kini boleh log masuk menggunakan emel <b>' + esc_(g.emel) + '</b> dan kata laluan yang anda tetapkan semasa mendaftar.</p>' +
+      '<p>Keahlian panitia yang anda pilih akan disahkan oleh Ketua Panitia masing-masing.</p>');
+  } else {
+    deleteWhere_('Keahlian', k => k.userId === g.id);
+    deleteWhere_('Pengguna', x => x.id === g.id);
+    log_(u, '', '', 'TOLAK PENDAFTARAN', g.nama + ' (' + g.emel + ')');
+  }
   return balasAdmin_(q, u);
 }
 
@@ -1683,8 +1801,7 @@ function resetKataLaluan(q, u) {
   const g = userById_(q.userId);
   mesti_(g, 'Pengguna tidak dijumpai.');
   const baru = uid_(8);
-  const salt = uid_(16);
-  update_('Pengguna', g.id, { hash: hash_(baru, salt), salt, wajibTukar: 'YA' });
+  update_('Pengguna', g.id, Object.assign(kataBaru_(baru), { wajibTukar: 'YA' }));
   deleteWhere_('Sesi', s => s.userId === g.id);
   log_(u, '', '', 'RESET KATA LALUAN', g.nama);
   return { kataLaluan: baru };
@@ -1723,6 +1840,12 @@ function simpanTetapan(q, u) {
   ['namaSekolah', 'kodSekolah', 'gbId', 'gbNama', 'pkId', 'pkNama', 'sukId', 'sukNama'].forEach(k => {
     if (d[k] !== undefined) setTetapan_(k, bersih_(d[k], 150));
   });
+  if (d.domainEmel !== undefined) {
+    const dm = bersih_(d.domainEmel, 200).toLowerCase().replace(/@/g, '').split(/[\s,]+/).filter(Boolean);
+    dm.forEach(x => mesti_(/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(x), 'Domain emel tidak sah: ' + x + '. Contoh: moe-dl.edu.my'));
+    setTetapan_('domainEmel', dm.join(', '));
+  }
+  ['emelPeringatan', 'benamkan'].forEach(k => { if (d[k] !== undefined) setTetapan_(k, String(d[k]).toUpperCase() === 'YA' ? 'YA' : 'TIDAK'); });
   if (d.jadualCsvUrl !== undefined) {
     const url = bersih_(d.jadualCsvUrl, 600);
     mesti_(!url || /^https:\/\/\S+$/i.test(url), 'Pautan CSV jadual mesti bermula dengan https://');
@@ -1730,4 +1853,118 @@ function simpanTetapan(q, u) {
   }
   log_(u, '', '', 'TETAPAN', 'Tetapan sekolah dikemas kini');
   return balasAdmin_(q, u);
+}
+
+/* =====================================================================
+ *  MIGRASI & AUTOMASI (trigger)
+ * ===================================================================== */
+
+/** Akaun import lama (kata laluan 12345678, belum ditukar) → kata laluan awal 6 digit akhir No. KP */
+function lalaiKeNoKP_() {
+  const sasar = rows_('Pengguna').filter(u => u.wajibTukar === 'YA' && u.hash !== 'LALAI' &&
+    /^\d{12}$/.test(u.noKP) && u.salt && u.hash === hash_(KATA_LALUAN_LALAI, u.salt));
+  sasar.forEach(u => update_('Pengguna', u.id, { hash: 'LALAI', salt: '' }));
+  if (sasar.length) log_('Sistem', '', '', 'KATA LALUAN AWAL', sasar.length + ' akaun ditukar ke 6 digit akhir No. KP');
+  return sasar.length;
+}
+
+/** Folder jadual waktu peribadi tidak lagi dikongsi melalui pautan awam (dipapar melalui aplikasi sahaja) */
+function tutupKongsiJadual_() {
+  try {
+    const f = folderSistem_('_JADUAL_WAKTU');
+    try { f.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE); } catch (e) { /* */ }
+    const it = f.getFiles();
+    while (it.hasNext()) { try { it.next().setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE); } catch (e) { /* */ } }
+  } catch (e) { Logger.log('⚠️ Perkongsian folder jadual tidak dapat ditutup: ' + e.message); }
+}
+
+/** Trigger harian: emel peringatan kepada ahli yang belum menghantar dokumen wajib menjelang tarikh akhir */
+function peringatanTugasan() {
+  ensureSchema_();
+  if (String(tetapan_().emelPeringatan || 'YA').toUpperCase() === 'TIDAK') { selesai_(); Logger.log('Emel peringatan dimatikan dalam Tetapan.'); return 0; }
+  const hariIni = Utilities.formatDate(new Date(), ZON, 'yyyy-MM-dd');
+  const beza = d => Math.round((Date.parse(d + 'T00:00:00Z') - Date.parse(hariIni + 'T00:00:00Z')) / 864e5);
+  const fail = rows_('Fail').filter(f => f.status === 'AKTIF' && f.tugasanId);
+  const perGuru = {};
+  rows_('Tugasan').forEach(tg => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(tg.tarikhAkhir)) return;
+    const b = beza(tg.tarikhAkhir);
+    if (HARI_PERINGATAN.indexOf(b) < 0) return;
+    const p = senaraiAktif_().find(x => x.id === tg.panitiaId);
+    if (!p) return;
+    ahliPanitia_(p).forEach(m => {
+      if (!m.emel || fail.some(f => f.tugasanId === tg.id && f.pemilikId === m.id)) return;
+      (perGuru[m.id] = perGuru[m.id] || { u: m, senarai: [] }).senarai.push({ tg, p, b });
+    });
+  });
+  let n = 0;
+  Object.keys(perGuru).forEach(id => {
+    const { u, senarai } = perGuru[id];
+    senarai.sort((x, y) => x.b - y.b);
+    const bila = b => b === 0 ? '<b style="color:#B83A2B">HARI INI</b>' : b === 1 ? '<b style="color:#B83A2B">esok</b>' : 'dalam ' + b + ' hari';
+    const isi = '<p>Salam sejahtera ' + esc_(u.nama) + ',</p><p>Dokumen wajib berikut <b>belum dihantar</b> melalui e-Panitia:</p><ul>' +
+      senarai.map(x => '<li style="margin-bottom:6px"><b>' + esc_(x.tg.tajuk) + '</b> — Panitia ' + esc_(x.p.nama) +
+        ', Folder ' + ('0' + x.tg.folderNo).slice(-2) + '<br><span style="color:#44545f">Tarikh akhir ' +
+        Utilities.formatDate(new Date(x.tg.tarikhAkhir + 'T12:00:00Z'), ZON, 'dd/MM/yyyy') + ' (' + bila(x.b) + ')</span></li>').join('') +
+      '</ul><p>Buka panitia berkenaan dan tekan butang <b>Hantar</b> pada senarai "Dokumen wajib saya".</p>';
+    const segera = senarai[0].b <= 1 ? '[Segera] ' : '';
+    if (hantarEmel_(u.emel, segera + 'Peringatan dokumen wajib panitia (' + senarai.length + ')', isi)) n++;
+  });
+  if (n) log_('Sistem', '', '', 'PERINGATAN EMEL', n + ' guru diingatkan tentang dokumen wajib');
+  selesai_();
+  Logger.log('✅ Emel peringatan dihantar kepada ' + n + ' guru. Baki kuota emel hari ini: ' + MailApp.getRemainingDailyQuota());
+  return n;
+}
+
+/** Trigger mingguan: salinan data (tanpa skrip) ke folder _SANDARAN. Simpan SIMPAN_SANDARAN salinan terkini. */
+function sandaranMingguan() {
+  ensureSchema_();
+  const ss = getSS_();
+  const folder = folderSistem_('_SANDARAN');
+  const nama = 'Sandaran e-Panitia ' + Utilities.formatDate(new Date(), ZON, 'yyyy-MM-dd HHmm');
+  const baru = SpreadsheetApp.create(nama);
+  const asal = baru.getSheets()[0];
+  asal.setName('__sementara_' + uid_(6));
+  ss.getSheets().forEach(sh => { sh.copyTo(baru).setName(sh.getName()); });
+  baru.deleteSheet(asal);
+  DriveApp.getFileById(baru.getId()).moveTo(folder);
+  const semua = [];
+  const it = folder.getFiles();
+  while (it.hasNext()) { const f = it.next(); if (/^Sandaran e-Panitia /.test(f.getName())) semua.push(f); }
+  semua.sort((a, b) => b.getDateCreated() - a.getDateCreated()).slice(SIMPAN_SANDARAN).forEach(f => { try { f.setTrashed(true); } catch (e) { /* */ } });
+  log_('Sistem', '', '', 'SANDARAN', nama);
+  selesai_();
+  Logger.log('✅ Sandaran dicipta: ' + baru.getUrl());
+  return baru.getId();
+}
+
+/** Trigger bulanan: pindahkan log lebih lama daripada ARKIB_LOG_HARI ke tab "Arkib Log" */
+function arkibLog() {
+  ensureSchema_();
+  kunci_();
+  const had = Date.now() - ARKIB_LOG_HARI * 864e5;
+  const t = table_('Log', true);
+  const lama = t.rows.filter(r => { const m = new Date(r.masa).getTime(); return m && m < had; });
+  if (!lama.length) { selesai_(); Logger.log('Tiada log lama untuk diarkib.'); return 0; }
+  const ss = getSS_();
+  let ar = ss.getSheetByName('Arkib Log');
+  if (!ar) {
+    ar = ss.insertSheet('Arkib Log');
+    ar.getRange(1, 1, 1, t.head.length).setValues([t.head]).setFontWeight('bold').setBackground('#6a7771').setFontColor('#FFFFFF');
+    ar.setFrozenRows(1);
+  }
+  const vals = lama.map(r => t.head.map(h => (r[h] === undefined ? '' : String(r[h]))));
+  const mula = ar.getLastRow() + 1;
+  if (mula + vals.length - 1 > ar.getMaxRows()) ar.insertRowsAfter(ar.getMaxRows(), mula + vals.length - 1 - ar.getMaxRows());
+  ar.getRange(mula, 1, vals.length, t.head.length).setNumberFormat('@').setValues(vals);
+  const buang = {};
+  lama.forEach(r => { buang[r._row] = 1; });
+  tulisSemula_('Log', t.rows.filter(r => !buang[r._row]));
+  const sh = sh_('Log');
+  const lebih = sh.getMaxRows() - Math.max(sh.getLastRow(), 1) - 100; // kecilkan helaian
+  if (lebih > 0) sh.deleteRows(sh.getMaxRows() - lebih + 1, lebih);
+  log_('Sistem', '', '', 'ARKIB LOG', lama.length + ' rekod lebih ' + ARKIB_LOG_HARI + ' hari dipindahkan ke tab Arkib Log');
+  selesai_();
+  Logger.log('✅ ' + lama.length + ' rekod log diarkib.');
+  return lama.length;
 }

@@ -112,6 +112,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green);b
 input[type=file]{width:100%;font-size:14px;padding:12px;border:1.5px dashed #AFC0B5;border-radius:12px;background:var(--surface-2)}
 .nota{font-size:12.5px;color:var(--muted)}
 .ralat-kotak{background:var(--red-soft);color:var(--red);padding:10px 12px;border-radius:12px;font-size:13.5px}
+.ok-kotak{background:#DCEBE3;color:#145C43;padding:10px 12px;border-radius:12px;font-size:13.5px}
 .subjek{border:0}
 .subjek legend{font-size:13px;font-weight:500;color:var(--ink-2);margin-bottom:4px}
 .sj{border:1.5px solid var(--line);border-radius:12px;margin-top:8px;background:#fff}
@@ -840,7 +841,7 @@ function rakHiasan() {
   return `<div class="auth-rak" aria-hidden="true">${w.map((c, i) => `<span style="background:${c};height:${h[i]}px"></span>`).join('')}</div>`;
 }
 
-async function viewAuth(msg) {
+async function viewAuth(msg, ok) {
   $('#app').hidden = true; $('#nav').hidden = true; $('#fab').hidden = true;
   $('#auth').innerHTML = `<div class="auth">
     <div class="auth-atas">${rakHiasan()}<h1>e-Panitia</h1><p id="authSek">Fail panitia digital sekolah anda</p></div>
@@ -849,7 +850,7 @@ async function viewAuth(msg) {
         <button role="tab" aria-selected="true" data-act="authTab" data-t="masuk">Log masuk</button>
         <button role="tab" aria-selected="false" data-act="authTab" data-t="daftar">Daftar akaun</button>
       </div>
-      ${msg ? `<p class="ralat-kotak" style="margin-bottom:14px">${esc(msg)}</p>` : ''}
+      ${msg ? `<p class="${ok ? 'ok-kotak' : 'ralat-kotak'}" style="margin-bottom:14px">${esc(msg)}</p>` : ''}
       <div id="authBorang"></div>
     </div></div>`;
   borangMasuk();
@@ -863,6 +864,7 @@ function borangMasuk() {
     <label class="medan"><span>Emel rasmi</span><input type="email" name="emel" autocomplete="username" required placeholder="nama@moe-dl.edu.my"></label>
     <label class="medan"><span>Kata laluan</span><input type="password" name="kataLaluan" autocomplete="current-password" required></label>
     <button class="btn utama penuh" type="submit">Log masuk</button>
+    <p class="nota">Akaun yang didaftarkan oleh pentadbir: kata laluan awal ialah 6 digit akhir No. Kad Pengenalan anda.</p>
     <p class="nota">Terlupa kata laluan? Minta Super Admin sekolah menetapkan semula kata laluan anda.</p></form>`;
 }
 function borangDaftar() {
@@ -870,11 +872,12 @@ function borangDaftar() {
   $('#authBorang').innerHTML = `<form class="borang" data-sub="daftar">
     <label class="medan"><span>Nama penuh</span><input name="nama" required autocomplete="name"></label>
     <label class="medan"><span>No. Kad Pengenalan</span><input name="noKP" required inputmode="numeric" pattern="\\d{12}" maxlength="12" placeholder="12 digit tanpa sengkang"></label>
-    <label class="medan"><span>Emel rasmi (DELIMa / MOE)</span><input type="email" name="emel" required autocomplete="email" placeholder="nama@moe-dl.edu.my"></label>
+    <label class="medan"><span>Emel rasmi (DELIMa / MOE)</span><input type="email" name="emel" required autocomplete="email" placeholder="nama@${esc((S.awam && S.awam.domainEmel && S.awam.domainEmel.split(',')[0].trim()) || 'moe-dl.edu.my')}"></label>
     <label class="medan"><span>No. telefon bimbit</span><input type="tel" name="telefon" required autocomplete="tel" placeholder="0123456789"></label>
     <label class="medan"><span>Kata laluan</span><input type="password" name="kataLaluan" required minlength="6" autocomplete="new-password" placeholder="Sekurang-kurangnya 6 aksara"></label>
     ${ada ? subjekPicker([], S.awam.panitia) : '<p class="ralat-kotak">Senarai panitia tidak dapat dimuatkan. Anda boleh memilih subjek kemudian di halaman Profil.</p>'}
-    <button class="btn utama penuh" type="submit">Daftar dan log masuk</button></form>`;
+    <p class="nota">Akaun baharu akan diaktifkan selepas diluluskan oleh Super Admin sekolah.</p>
+    <button class="btn utama penuh" type="submit">Hantar pendaftaran</button></form>`;
 }
 
 function subjekPicker(pilihan, semua) {
@@ -1022,7 +1025,8 @@ function mulaSyncBerkala() {
 
 /* ---------- OUTBOX: simpan serta-merta, hantar di latar dalam satu batch ---------- */
 const OB = 'ep_outbox';
-const ADMIN_OPS = ['simpanPanitia', 'padamPanitia', 'lantikKP', 'kemaskiniPengguna', 'simpanTetapan'];
+const ADMIN_OPS = ['simpanPanitia', 'padamPanitia', 'lantikKP', 'kemaskiniPengguna', 'simpanTetapan', 'luluskanPengguna'];
+const bilMenunggu = () => (S.adm && S.adm.pengguna ? S.adm.pengguna.filter(u => u.status === 'MENUNGGU').length : 0);
 let OUTBOX_JALAN = false, obTimer = null, obCuba = 0;
 const outbox = () => (store.get(OB) || []).filter(o => S.user && o.u === S.user.id);
 function antri(action, data, label) {
@@ -1625,7 +1629,7 @@ function viewProfil() {
           <label class="btn">${ic('upload', 18)}${u.jadualId ? 'Ganti salinan' : 'Muat naik salinan'}<input type="file" accept="application/pdf,image/*" data-chg="jadualSaya" hidden></label></div>
       </details></section>
     <section class="blok"><div class="menu-senarai">
-      ${u.peranan === 'SUPER_ADMIN' ? `<button data-act="keAdmin">${ic('shield')}<span>Pentadbiran sistem</span>${ic('chev', 16)}</button>` : ''}
+      ${u.peranan === 'SUPER_ADMIN' ? `<button data-act="keAdmin">${ic('shield')}<span>Pentadbiran sistem${bilMenunggu() ? ` <span class="chip tunggu">${bilMenunggu()} menunggu kelulusan</span>` : ''}</span>${ic('chev', 16)}</button>` : ''}
       <button data-act="borangKataLaluan">${ic('key')}<span>Tukar kata laluan</span>${ic('chev', 16)}</button>
       <button data-act="pasangApp">${ic('phoneApp')}<span>Pasang pada skrin utama telefon</span>${ic('chev', 16)}</button>
       <button data-act="logKeluar" class="merah">${ic('logout')}<span class="merah">Log keluar</span></button>
@@ -1754,7 +1758,7 @@ function muatAdmin(paksa) {
 }
 function namaGuru(id) { const u = S.adm && S.adm.pengguna.find(x => x.id === id); return u ? u.nama : ''; }
 function pilihGuru(nama, nilai, label = '— Tiada —') {
-  return `<select name="${nama}"><option value="">${label}</option>${S.adm.pengguna.filter(u => u.status !== 'NYAHAKTIF').map(u => `<option value="${u.id}" ${u.id === nilai ? 'selected' : ''}>${esc(u.nama)}</option>`).join('')}</select>`;
+  return `<select name="${nama}"><option value="">${label}</option>${S.adm.pengguna.filter(u => u.status !== 'NYAHAKTIF' && u.status !== 'MENUNGGU').map(u => `<option value="${u.id}" ${u.id === nilai ? 'selected' : ''}>${esc(u.nama)}</option>`).join('')}</select>`;
 }
 function fotoPentadbirHTML(kod, T) {
   const u = S.adm.pengguna.find(x => x.id === T[kod + 'Id']);
@@ -1781,9 +1785,15 @@ function renderAdmin() {
       }).join('') || '<p class="kosong-kecil">Belum ada panitia.</p>'}</section>`;
   } else if (t === 'pengguna') {
     const q = S.admCari.toLowerCase();
-    const senarai = A.pengguna.filter(u => !q || (u.nama + ' ' + u.emel).toLowerCase().includes(q));
-    isi = `<label class="cari">${ic('search', 18)}<input type="search" data-inp="cariPengguna" value="${esc(S.admCari)}" placeholder="Cari nama atau emel" aria-label="Cari pengguna"></label>
-      <p class="muted" style="margin:0 4px 8px">${A.pengguna.length} pengguna berdaftar</p>
+    const senarai = A.pengguna.filter(u => u.status !== 'MENUNGGU' && (!q || (u.nama + ' ' + u.emel).toLowerCase().includes(q)));
+    const tunggu = A.pengguna.filter(u => u.status === 'MENUNGGU');
+    isi = `${tunggu.length ? `<section class="blok amaran" style="margin-top:0;margin-bottom:12px"><div class="blok-kepala"><h3>Menunggu kelulusan</h3><span class="chip tunggu">${tunggu.length}</span></div>
+      ${tunggu.map(u => `<div class="admin-baris">${avatar(u, 42)}
+        <button class="isi" data-act="penggunaSheet" data-id="${u.id}"><b>${esc(u.nama)}</b><small>${esc(u.emel)}${u.telefon ? ', ' + esc(u.telefon) : ''}</small></button>
+        <button class="btn kecil utama" data-act="lulusPengguna" data-id="${u.id}" data-lulus="1">Lulus</button>
+        <button class="btn kecil" data-act="lulusPengguna" data-id="${u.id}" data-lulus="0">Tolak</button></div>`).join('')}</section>` : ''}
+      <label class="cari">${ic('search', 18)}<input type="search" data-inp="cariPengguna" value="${esc(S.admCari)}" placeholder="Cari nama atau emel" aria-label="Cari pengguna"></label>
+      <p class="muted" style="margin:0 4px 8px">${senarai.length} pengguna aktif / nyahaktif</p>
       <section class="blok" style="margin-top:0">${senarai.map(u => `<div class="admin-baris">${avatar(u, 42)}
         <button class="isi" data-act="penggunaSheet" data-id="${u.id}"><b>${esc(u.nama)}</b><small>${esc(u.emel)}</small></button>
         ${u.peranan === 'SUPER_ADMIN' ? '<span class="chip kp">Super Admin</span>' : ''}${u.status === 'NYAHAKTIF' ? '<span class="chip merah">Nyahaktif</span>' : ''}</div>`).join('') || '<p class="kosong-kecil">Tiada padanan.</p>'}</section>`;
@@ -1792,6 +1802,10 @@ function renderAdmin() {
     isi = `<form class="borang blok" style="margin-top:0" data-sub="hantarTetapan">
       <label class="medan"><span>Nama sekolah</span><input name="namaSekolah" value="${esc(T.namaSekolah)}" required></label>
       <label class="medan"><span>Kod sekolah <i>(pilihan)</i></span><input name="kodSekolah" value="${esc(T.kodSekolah)}"></label>
+      <label class="medan"><span>Domain emel dibenarkan mendaftar <i>(pilihan)</i></span><input name="domainEmel" value="${esc(T.domainEmel || '')}" placeholder="cth. moe-dl.edu.my"></label>
+      <p class="nota">Kosongkan untuk membenarkan semua emel. Semua pendaftaran baharu tetap perlu diluluskan oleh Super Admin.</p>
+      <label class="medan"><span>Emel peringatan dokumen wajib</span><select name="emelPeringatan"><option value="YA" ${T.emelPeringatan !== 'TIDAK' ? 'selected' : ''}>Hantar (7, 3, 1 hari sebelum dan pada tarikh akhir)</option><option value="TIDAK" ${T.emelPeringatan === 'TIDAK' ? 'selected' : ''}>Jangan hantar</option></select></label>
+      <label class="medan"><span>Benamkan dalam Google Sites / iframe</span><select name="benamkan"><option value="TIDAK" ${T.benamkan !== 'YA' ? 'selected' : ''}>Tidak (lebih selamat)</option><option value="YA" ${T.benamkan === 'YA' ? 'selected' : ''}>Ya, aplikasi dibenamkan dalam laman lain</option></select></label>
       <p class="nota">Pentadbir berikut dipaparkan pada Tahap 1 dan 2 carta organisasi setiap panitia. Pilih guru berdaftar, atau taip nama jika belum mendaftar.</p>
       <label class="medan"><span>Guru Besar (Penasihat)</span>${pilihGuru('gbId', T.gbId)}<input name="gbNama" value="${esc(T.gbNama)}" placeholder="Atau taip nama"></label>${fotoPentadbirHTML('gb', T)}
       <label class="medan"><span>Penolong Kanan Pentadbiran (Pengerusi)</span>${pilihGuru('pkId', T.pkId)}<input name="pkNama" value="${esc(T.pkNama)}" placeholder="Atau taip nama"></label>${fotoPentadbirHTML('pk', T)}
@@ -1801,7 +1815,7 @@ function renderAdmin() {
       <button class="btn" type="button" data-act="jwUjiSumber">${ic('refresh', 18)}Muat semula jadual dari Google Sheet</button>
       <button class="btn utama" type="submit">Simpan tetapan</button></form>`;
   }
-  $('#main').innerHTML = `<div class="seg tiga" role="tablist">${[['panitia', 'Panitia'], ['pengguna', 'Pengguna'], ['tetapan', 'Tetapan']].map(([k, l]) => `<button role="tab" aria-selected="${t === k}" data-act="admTab" data-t="${k}">${l}</button>`).join('')}</div>${isi}`;
+  $('#main').innerHTML = `<div class="seg tiga" role="tablist">${[['panitia', 'Panitia'], ['pengguna', 'Pengguna' + (bilMenunggu() ? ` (${bilMenunggu()})` : '')], ['tetapan', 'Tetapan']].map(([k, l]) => `<button role="tab" aria-selected="${t === k}" data-act="admTab" data-t="${k}">${l}</button>`).join('')}</div>${isi}`;
   hydrateImgs();
 }
 
@@ -2047,9 +2061,15 @@ const ACT = {
     try {
       const r = await call('lihatJadual', { userId: el.dataset.id });
       if (/^image\//.test(r.mime)) paparZoom(`data:${r.mime};base64,${r.data}`);
-      else bukaSheet(`<div class="prev-kepala"><h3>${esc(r.nama)}</h3><button class="ib" data-act="tutupSheet" aria-label="Tutup">${ic('x')}</button></div>
-        <div class="prev-badan"><iframe src="https://drive.google.com/file/d/${r.driveId}/preview" title="${esc(r.nama)}"></iframe></div>
+      else {
+        const bin = atob(r.data), arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        const bu = URL.createObjectURL(new Blob([arr], { type: r.mime || 'application/pdf' }));
+        const w = bukaSheet(`<div class="prev-kepala"><h3>${esc(r.nama)}</h3><button class="ib" data-act="tutupSheet" aria-label="Tutup">${ic('x')}</button></div>
+        <div class="prev-badan"><iframe src="${bu}" title="${esc(r.nama)}"></iframe></div>
         <div class="prev-aksi"><button class="btn utama" id="jwTurun">${ic('download', 18)}Muat turun PDF</button></div>`, { penuh: true });
+        const pantau = setInterval(() => { if (!document.body.contains(w)) { URL.revokeObjectURL(bu); clearInterval(pantau); } }, 5000);
+      }
       const b = $('#jwTurun'); if (b) b.onclick = () => simpanFail(r.data, r.mime, r.nama + '.pdf');
     } catch (e) { toast(e.message, 'ralat'); } finally { sibuk(false); }
   },
@@ -2189,10 +2209,11 @@ const ACT = {
     bukaSheet(`${kadProfilHTML(u, { peranan: u.peranan === 'SUPER_ADMIN' ? 'Super Admin' : 'Guru', ubahFoto: 'fotoGuru', id: u.id })}
       <div style="margin-top:12px">${infoHTML(u, true)}</div>
       <p class="muted" style="margin:10px 0">Panitia: ${pan.length ? esc(pan.join(', ')) : 'tiada'}</p>
-      <div class="baris-btn">
+      ${u.status === 'MENUNGGU' ? `<p class="ralat-kotak" style="background:var(--yellow-soft);color:#7A5A00;margin-bottom:10px">Pendaftaran ini menunggu kelulusan.</p>
+      <div class="baris-btn"><button class="btn utama" data-act="lulusPengguna" data-id="${u.id}" data-lulus="1">${ic('check', 18)}Luluskan</button><button class="btn bahaya" data-act="lulusPengguna" data-id="${u.id}" data-lulus="0">Tolak dan padam</button></div>` : `<div class="baris-btn">
         <button class="btn" data-act="setPeranan" data-id="${u.id}" data-v="${u.peranan === 'SUPER_ADMIN' ? 'GURU' : 'SUPER_ADMIN'}">${u.peranan === 'SUPER_ADMIN' ? 'Tarik balik Super Admin' : 'Jadikan Super Admin'}</button>
         <button class="btn" data-act="resetKL" data-id="${u.id}">${ic('key', 18)}Set semula kata laluan</button>
-        <button class="btn ${u.status === 'NYAHAKTIF' ? '' : 'bahaya'}" data-act="setStatus" data-id="${u.id}" data-v="${u.status === 'NYAHAKTIF' ? 'AKTIF' : 'NYAHAKTIF'}">${u.status === 'NYAHAKTIF' ? 'Aktifkan akaun' : 'Nyahaktifkan akaun'}</button></div>`);
+        <button class="btn ${u.status === 'NYAHAKTIF' ? '' : 'bahaya'}" data-act="setStatus" data-id="${u.id}" data-v="${u.status === 'NYAHAKTIF' ? 'AKTIF' : 'NYAHAKTIF'}">${u.status === 'NYAHAKTIF' ? 'Aktifkan akaun' : 'Nyahaktifkan akaun'}</button></div>`}`);
   },
   setPeranan: el => {
     const u = S.adm.pengguna.find(x => x.id === el.dataset.id); u.peranan = el.dataset.v;
@@ -2206,6 +2227,15 @@ const ACT = {
     tutupSheet(); renderAdmin(); toast('Status akaun dikemas kini');
     store.set('ep_adm', S.adm);
     antri('kemaskiniPengguna', { userId: u.id, status: el.dataset.v }, 'Status akaun ' + u.nama);
+  },
+  lulusPengguna: async el => {
+    const u = S.adm.pengguna.find(x => x.id === el.dataset.id); if (!u) return;
+    const lulus = el.dataset.lulus === '1';
+    if (!lulus && !await sahkan('Tolak pendaftaran?', `Akaun ${esc(u.nama)} (${esc(u.emel)}) akan dipadam.`, 'Tolak', true)) return;
+    if (lulus) u.status = 'AKTIF'; else S.adm.pengguna = S.adm.pengguna.filter(x => x.id !== u.id);
+    tutupSheet(); renderAdmin(); toast(lulus ? `${u.nama} diluluskan` : 'Pendaftaran ditolak');
+    store.set('ep_adm', S.adm);
+    antri('luluskanPengguna', { userId: u.id, lulus }, (lulus ? 'Lulus ' : 'Tolak ') + u.nama);
   },
   resetKL: async el => {
     if (!await sahkan('Set semula kata laluan?', 'Kata laluan sementara akan dijana. Guru perlu log masuk dengannya dan menukar kata laluan.', 'Set semula')) return;
@@ -2234,6 +2264,7 @@ const SUB = {
     sibuk('Mendaftar akaun…');
     try {
       const d = await call('daftar', { nama: f.nama.value, noKP: f.noKP.value, emel: f.emel.value, telefon: f.telefon.value, kataLaluan: f.kataLaluan.value, subjek: bacaSubjek(f) });
+      if (d.menunggu) { viewAuth(d.mesej, true); return; }
       setInit(d); $('#auth').innerHTML = ''; tunjukShell(); pergi('profil');
       toast(d.user.peranan === 'SUPER_ADMIN' ? 'Akaun didaftarkan. Anda ialah Super Admin sistem.' : 'Akaun didaftarkan. Lengkapkan profil anda.');
     } catch (e) { toast(e.message, 'ralat'); } finally { sibuk(false); }
@@ -2345,7 +2376,8 @@ const SUB = {
   },
   hantarWajib: async f => {
     if (f.baru.value !== f.ulang.value) return toast('Kedua-dua kata laluan tidak sama.', 'ralat');
-    if (f.baru.value === '12345678') return toast('Kata laluan baharu tidak boleh sama dengan kata laluan lalai.', 'ralat');
+    const awal = String((S.user && S.user.noKP) || '').replace(/\D/g, '').slice(-6);
+    if (f.baru.value === '12345678' || f.baru.value === awal) return toast('Kata laluan baharu tidak boleh sama dengan kata laluan awal (6 digit akhir No. KP).', 'ralat');
     sibuk('Menyimpan kata laluan…');
     try {
       await call('tukarKataLaluan', { baru: f.baru.value });
@@ -2378,7 +2410,7 @@ const SUB = {
   },
   hantarTetapan: f => {
     const tetapan = {};
-    ['namaSekolah', 'kodSekolah', 'gbId', 'gbNama', 'pkId', 'pkNama', 'sukId', 'sukNama', 'jadualCsvUrl'].forEach(k => { tetapan[k] = f[k].value.trim(); });
+    ['namaSekolah', 'kodSekolah', 'domainEmel', 'emelPeringatan', 'benamkan', 'gbId', 'gbNama', 'pkId', 'pkNama', 'sukId', 'sukNama', 'jadualCsvUrl'].forEach(k => { tetapan[k] = f[k].value.trim(); });
     if (tetapan.jadualCsvUrl && !/^https:\/\/\S+$/i.test(tetapan.jadualCsvUrl)) return toast('Pautan CSV jadual mesti bermula dengan https://', 'ralat');
     Object.assign(S.adm.tetapan, tetapan);
     S.data.tetapan.namaSekolah = tetapan.namaSekolah; $('#tSek').textContent = tetapan.namaSekolah; store.set('ep_init', S.data);
