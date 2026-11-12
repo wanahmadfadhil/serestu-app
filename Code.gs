@@ -1151,49 +1151,88 @@ function a_saveAiTetapan(d, ctx) {
   return Object.assign(a_aiTetapan(d, ctx), { uji: uji });
 }
 
-/** Panggil penyedia AI dan pulangkan teks jawapan. */
+/** Model sandaran jika model utama sesak (503/overloaded). Alias "-latest" sentiasa menunjuk ke model Flash semasa. */
+const AI_MODEL_SANDARAN = { gemini: ['gemini-flash-latest', 'gemini-flash-lite-latest'], claude: [] };
+/** Kod HTTP yang bermaksud pelayan AI sesak atau gangguan sementara: wajar dicuba semula. */
+const AI_KOD_SEMENTARA = [429, 500, 502, 503, 504, 529];
+
+/**
+ * Panggil penyedia AI dan pulangkan teks jawapan.
+ * Jika pelayan sesak: cuba semula model utama hingga 3 kali (jeda 1s, 2s), kemudian cuba model sandaran.
+ * Ralat kekal (kunci salah, permintaan tidak sah) tidak dicuba semula.
+ */
 function aiPanggil_(c, sistem, mesej, maks) {
   if (!c.key) throw fail_('Pembantu AI belum disediakan. Super Admin perlu memasukkan kunci API.');
-  let url, opt;
+  const mula = Date.now(), HAD_MS = 55000;
+  const models = [c.model].concat((AI_MODEL_SANDARAN[c.provider] || []).filter(m => m !== c.model));
+  let utama = null;
+  for (let mi = 0; mi < models.length; mi++) {
+    const cubaan = mi === 0 ? 3 : 1;
+    for (let i = 0; i < cubaan; i++) {
+      if (i > 0) Utilities.sleep(1000 * Math.pow(2, i - 1) + Math.floor(Math.random() * 400));
+      const r = aiSekali_(c, models[mi], sistem, mesej, maks);
+      if (r.teks) {
+        if (mi > 0) Logger.log('AI: model ' + c.model + ' sesak, jawapan daripada model sandaran ' + models[mi]);
+        return r.teks;
+      }
+      if (!r.sementara) {
+        if (mi === 0) throw r.ralat;   // ralat kekal pada model utama: laporkan terus
+        break;                          // model sandaran tidak tersedia: abaikan, laporkan ralat model utama
+      }
+      if (mi === 0) utama = r;
+      if (Date.now() - mula > HAD_MS) break;
+    }
+    if (Date.now() - mula > HAD_MS) break;
+  }
+  if (utama && utama.kod === 429) throw fail_('Had penggunaan perkhidmatan AI telah dicapai (429). Cuba lagi dalam beberapa minit.', 'AISESAK');
+  throw fail_('Perkhidmatan AI sedang sesak' + (utama && utama.kod ? ' (ralat ' + utama.kod + ')' : '') + '. Sistem telah mencuba beberapa kali. Cuba lagi dalam 1 hingga 2 minit.', 'AISESAK');
+}
+
+/** Satu panggilan HTTP. Pulangkan { teks } atau { ralat, sementara, kod }. */
+function aiSekali_(c, model, sistem, mesej, maks) {
+  let url, opt, ulang = null;
   if (c.provider === 'claude') {
     url = 'https://api.anthropic.com/v1/messages';
     opt = { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
       headers: { 'x-api-key': c.key, 'anthropic-version': '2023-06-01' },
-      payload: JSON.stringify({ model: c.model, max_tokens: maks || 1500, system: sistem, messages: [{ role: 'user', content: mesej }] }) };
+      payload: JSON.stringify({ model: model, max_tokens: maks || 1500, system: sistem, messages: [{ role: 'user', content: mesej }] }) };
   } else {
-    url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(c.model) + ':generateContent';
+    url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent';
     const gen = { temperature: 0.7, maxOutputTokens: Math.max(2048, maks || 1500), responseMimeType: 'application/json' };
     // Mod "berfikir" (thinking) dimatikan/diminimumkan: laporan ringkas tidak memerlukannya dan ia melambatkan jawapan
-    const think = thinkingGemini_(c.model);
+    const think = thinkingGemini_(model);
     if (think) gen.thinkingConfig = think;
     const bina = g => ({ method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { 'x-goog-api-key': c.key },
       payload: JSON.stringify({ systemInstruction: { parts: [{ text: sistem }] }, contents: [{ role: 'user', parts: [{ text: mesej }] }], generationConfig: g }) });
     opt = bina(gen);
-    if (think) {
-      // Jika model tidak menyokong tetapan thinking, cuba sekali lagi tanpanya
-      const g2 = Object.assign({}, gen); delete g2.thinkingConfig;
-      opt.ulang = bina(g2);
-    }
+    if (think) { const g2 = Object.assign({}, gen); delete g2.thinkingConfig; ulang = bina(g2); }
   }
   const panggil = o => {
     try { return UrlFetchApp.fetch(url, o); } catch (e) {
       const m = String(e.message || e);
       if (/permission|external_request|kebenaran/i.test(m)) throw fail_('Apps Script belum dibenarkan menghubungi perkhidmatan luar. Pemilik skrip perlu membuka editor Apps Script, pilih fungsi benarkanAI, tekan Run dan luluskan kebenaran, kemudian Deploy versi baharu.');
-      throw fail_('Perkhidmatan AI tidak dapat dihubungi: ' + m);
+      return null;   // gangguan rangkaian/tamat masa: dikira sementara
     }
   };
-  const ulang = opt.ulang; delete opt.ulang;
   let res = panggil(opt);
-  if (ulang && res.getResponseCode() === 400 && /think/i.test(res.getContentText())) res = panggil(ulang);
+  if (!res) return { sementara: true, kod: 0, ralat: fail_('Perkhidmatan AI tidak dapat dihubungi.') };
+  // Model tidak menyokong tetapan thinking: cuba sekali lagi tanpanya
+  if (ulang && res.getResponseCode() === 400 && /think/i.test(res.getContentText())) {
+    res = panggil(ulang);
+    if (!res) return { sementara: true, kod: 0, ralat: fail_('Perkhidmatan AI tidak dapat dihubungi.') };
+  }
   const code = res.getResponseCode(), body = parse_(res.getContentText(), {});
-  if (code === 429) throw fail_('Had penggunaan perkhidmatan AI telah dicapai. Cuba lagi sebentar.', 'BUSY');
-  if (code === 401 || code === 403) throw fail_('Kunci API ditolak oleh penyedia AI. Super Admin perlu menyemak kunci.');
-  if (code < 200 || code >= 300) throw fail_('Perkhidmatan AI memulangkan ralat ' + code + ': ' + String((body.error && body.error.message) || '').slice(0, 200));
+  const pesan = String((body.error && body.error.message) || '').slice(0, 200);
+  if (AI_KOD_SEMENTARA.indexOf(code) >= 0) return { sementara: true, kod: code, ralat: fail_('Perkhidmatan AI sesak (' + code + ').') };
+  if (code === 401 || code === 403) return { sementara: false, kod: code, ralat: fail_('Kunci API ditolak oleh penyedia AI. Super Admin perlu menyemak kunci.') };
+  if (code === 404) return { sementara: false, kod: code, ralat: fail_('Model AI "' + model + '" tidak dijumpai. Super Admin perlu menyemak nama model di Pentadbiran, Pembantu AI.') };
+  if (code < 200 || code >= 300) return { sementara: false, kod: code, ralat: fail_('Perkhidmatan AI memulangkan ralat ' + code + ': ' + pesan) };
   let teks = '';
   if (c.provider === 'claude') teks = ((body.content || []).find(x => x.type === 'text') || {}).text || '';
   else teks = (((((body.candidates || [])[0] || {}).content || {}).parts || []).filter(x => x.text && !x.thought).map(x => x.text).join(''));
-  if (!teks) throw fail_('Perkhidmatan AI tidak memulangkan jawapan. Cuba lagi.');
-  return teks;
+  // Jawapan kosong (contoh disekat atau terputus) juga dicuba semula
+  if (!teks) return { sementara: true, kod: code, ralat: fail_('Perkhidmatan AI tidak memulangkan jawapan. Cuba lagi.') };
+  return { teks: teks };
 }
 
 /** Tetapan thinking paling rendah mengikut keluarga model Gemini (null = jangan hantar). */
@@ -1247,7 +1286,7 @@ function a_aiLaporan(d, ctx) {
   const cache = CacheService.getScriptCache();
   const kunciHad = 'ai_' + ctx.id + '_' + today_();
   const guna = Number(cache.get(kunciHad) || 0);
-  if (guna >= c.had && !ctx.super) throw fail_('Had harian ' + c.had + ' kali penjanaan AI telah dicapai. Cuba lagi esok.', 'BUSY');
+  if (guna >= c.had && !ctx.super) throw fail_('Had harian ' + c.had + ' kali penjanaan AI telah dicapai. Cuba lagi esok.', 'HAD');
 
   const cu = c0.unit.find(x => x.id === idUnit) || {};
   const ck = c0.kategori.find(x => x.id === cu.idKategori) || {};
