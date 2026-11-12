@@ -522,6 +522,8 @@ body.mod-pemantau .app{padding-bottom:40px}
 .imp-jadual th,.imp-jadual td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 .imp-jadual th{position:sticky;top:0;background:var(--surface-2);font-weight:600}
 .imp-jadual tr.salah td{color:var(--red)}
+.tk-penggal{display:block;font-size:11.5px;font-weight:500;color:var(--muted);text-align:center;margin-top:1px}
+.tk-kal-atas h3{text-align:center}
 .tk-tip{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;font-size:12.5px;color:var(--muted)}
 .tk-hari.kini{background:var(--green-soft);color:var(--green);font-weight:600}
 .tk-hari[aria-pressed="true"]{background:var(--green);color:#fff;font-weight:600}
@@ -733,7 +735,8 @@ function call(action, data = {}, opt = {}) {
   }
   return p.then(r => {
     if (!r || !r.ok) {
-      const msg = (r && r.error) || 'Ralat tidak diketahui.';
+      let msg = (r && r.error) || 'Ralat tidak diketahui.';
+      if (/^Tindakan tidak (dikenali|dibenarkan)/.test(msg)) msg = `Fungsi ini memerlukan kod pelayan (Code.gs) yang terkini. Pelayan masih versi ${(S.data && S.data.versi) || 'lama'}. Tampal Code.gs baharu, jalankan setupSistem(), kemudian Manage deployments › Edit › New version.`;
       if (msg === 'SESI_TAMAT') { tamatSesi(); throw new Error('Sesi anda telah tamat. Sila log masuk semula.'); }
       if (/^PELAYAN_SIBUK/.test(msg)) { const er = new Error(msg.replace(/^PELAYAN_SIBUK:\s*/, '')); er.sibuk = true; throw er; }
       throw new Error(msg);
@@ -1149,7 +1152,7 @@ function viewHome() {
   const peranan = d.panitia.filter(p => p.peranan === 'KP' || p.peranan === 'SU').map(p => `${PERANAN[p.peranan]} ${p.nama}`);
   if (d.pentadbirKur) peranan.unshift(u.peranan === 'SUPER_ADMIN' ? 'Super Admin' : 'Pentadbir kurikulum');
   const tugas = tugasanSaya();
-  const minggu = acaraTakwim().filter(a => a.tamat >= hariISO(0) && a.mula <= hariISO(7));
+  const minggu = acaraTakwim().filter(a => a.kategori !== 'PERSEKOLAHAN' && a.tamat >= hariISO(0) && a.mula <= hariISO(7));
   const notis = pemberitahuan();
   const dotTugas = t => !t.tarikh ? 'kelabu' : t.tarikh <= hariISO(1) ? 'merah' : 'kuning';
   $('#main').innerHTML = `
@@ -3206,7 +3209,8 @@ function viewTakwim() {
     sel.push(`<button class="tk-hari ${iso === kini ? 'kini' : ''} ${cuti ? 'cuti' : ''}" ${cuti ? `title="${esc(cuti.tajuk)}"` : ''} data-act="tkHari" data-v="${iso}" aria-pressed="${S.tkHari === iso}" aria-label="${dd} ${BULAN_PENUH[m - 1]}${ac.length ? ', ' + ac.length + ' acara' : ''}">${dd}
       <span class="tk-titik">${aktiviti.slice(0, 3).map(a => `<i class="${tindih ? 'r' : a.jenis === 'MESYUARAT' ? 'm' : ''}"></i>`).join('')}</span></button>`);
   }
-  const senarai = S.tkHari ? bulanIni.filter(a => a.mula <= S.tkHari && a.tamat >= S.tkHari) : bulanIni;
+  const senarai = (S.tkHari ? bulanIni.filter(a => a.mula <= S.tkHari && a.tamat >= S.tkHari) : bulanIni).filter(a => a.kategori !== 'PERSEKOLAHAN' || tapis === 'KPM');
+  const penggal = [...new Set(bulanIni.filter(a => a.kategori === 'PERSEKOLAHAN').map(a => a.tajuk))];
   const bolehTambah = bolehTambahTakwim();
   const pilihanP = [...new Set((K.program || []).map(x => x.panitiaId).filter(Boolean))].map(id => ({ id, nama: namaPanitia(id) })).filter(x => x.nama).sort((a, b) => a.nama.localeCompare(b.nama));
   $('#main').innerHTML = `${amaranPelayanHTML()}
@@ -3215,7 +3219,7 @@ function viewTakwim() {
       ${bolehTambah ? `<button class="btn kuning" data-act="borangProgram">${ic('plus', 18)}Aktiviti</button>` : ''}
       ${pentadbirKur() ? `<button class="ib" data-act="borangImportTakwim" aria-label="Import takwim persekolahan KPM" title="Import takwim KPM">${ic('upload', 20)}</button>` : ''}</div>
     <section class="tk-kal">
-      <div class="tk-kal-atas"><button class="ib" data-act="tkBulan" data-v="-1" aria-label="Bulan sebelum">${ic('back', 18)}</button><h3>${BULAN_PENUH[m - 1]} ${y}</h3><button class="ib" data-act="tkBulan" data-v="1" aria-label="Bulan seterusnya">${ic('chev', 18)}</button></div>
+      <div class="tk-kal-atas"><button class="ib" data-act="tkBulan" data-v="-1" aria-label="Bulan sebelum">${ic('back', 18)}</button><h3>${BULAN_PENUH[m - 1]} ${y}${penggal.length ? `<small class="tk-penggal">${esc(penggal.join(' · '))}</small>` : ''}</h3><button class="ib" data-act="tkBulan" data-v="1" aria-label="Bulan seterusnya">${ic('chev', 18)}</button></div>
       <div class="tk-grid">${['Isn', 'Sel', 'Rab', 'Kha', 'Jum', 'Sab', 'Ahd'].map(h => `<span class="hd">${h}</span>`).join('')}${sel.join('')}</div>
       <div class="tk-petunjuk"><span><i style="background:#F9E3DF"></i>Cuti sekolah</span><span><i style="background:var(--carta);border-radius:50%"></i>Aktiviti</span><span><i style="background:var(--yellow);border-radius:50%"></i>Mesyuarat JK</span></div>
       ${bolehTambah ? `<p class="tk-tip">${ic('plus', 14)}Ketik mana-mana tarikh untuk mengisi aktiviti pada hari itu</p>` : ''}
@@ -3574,6 +3578,12 @@ Object.assign(INP, { tkTindih: () => semakTindih() });
 
 
 /* ---------- Import takwim persekolahan KPM ---------- */
+/** Versi kod pelayan (dari init) sekurang-kurangnya `min` */
+function versiSekurang(min) {
+  const a = String((S.data && S.data.versi) || '0').split('.').map(Number), b = min.split('.').map(Number);
+  for (let i = 0; i < 3; i++) { if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) > (b[i] || 0); }
+  return true;
+}
 function padanTapis(a, tapis) {
   if (!tapis) return true;
   if (tapis === 'SEKOLAH') return !a.panitiaId && !(a.x && a.x.sumber === 'KPM');
@@ -3645,7 +3655,7 @@ function hurai(teks) {
     const r = { tajuk, tarikhMula: mula, tarikhTamat: tamat && tamat > mula ? tamat : '', kategori: kategoriTeka(tajuk, katAsal), asal: sel.join(' | ') };
     r.sah = !!(r.tajuk && r.tarikhMula);
     return r;
-  }).filter(r => r.sah || r.tajuk || r.tarikhMula);
+  }).filter((r, i) => (r.sah || r.tajuk || r.tarikhMula) && !(i === 0 && !r.tarikhMula && /tarikh|perkara|kategori|date/i.test(r.asal)));
 }
 function borangImportTakwim() {
   const th = new Date().getFullYear() + (new Date().getMonth() >= 9 ? 1 : 0);
@@ -3679,7 +3689,10 @@ function pratontonImport(teks) {
   if (btn) { btn.disabled = !sah.length; btn.textContent = sah.length ? `Import ${sah.length} acara ke takwim` : 'Import'; }
 }
 Object.assign(ACT, {
-  borangImportTakwim: () => borangImportTakwim(),
+  borangImportTakwim: () => {
+    if (!versiSekurang('2.1.0')) return toast(`Import takwim memerlukan Code.gs versi 2.1.0 atau lebih baharu. Pelayan sekarang versi ${(S.data && S.data.versi) || '?'}: tampal Code.gs baharu, jalankan setupSistem(), kemudian deploy New version.`, 'ralat');
+    borangImportTakwim();
+  },
   impTemplat: () => {
     const csv = '﻿Tarikh mula,Tarikh tamat,Perkara,Kategori\n';
     simpanFail(btoa(unescape(encodeURIComponent(csv))), 'text/csv', 'Templat Takwim Persekolahan.csv');
